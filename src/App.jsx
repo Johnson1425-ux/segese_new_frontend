@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { HelmetProvider } from 'react-helmet-async';
@@ -16,12 +16,14 @@ import UnauthorizedPage from './components/common/UnauthorizedPage.jsx';
 
 // Auth Components
 import LoginForm from './components/auth/LoginForm.jsx';
-import RegisterForm from './components/auth/RegisterForm.jsx';
 import ForgotPasswordForm from './components/auth/ForgotPasswordForm.jsx';
 import ResetPasswordForm from './components/auth/ResetPasswordForm.jsx';
 import VerifyEmail from './components/auth/VerifyEmail.jsx';
 
 // Pages
+import Home from './pages/Home.jsx';
+import AboutUs from './pages/AboutUs.jsx';
+import ServicesPage from './pages/ServicesPage.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Patients from './pages/Patients.jsx';
 import PatientSearch from './pages/PatientSearch.jsx';
@@ -34,6 +36,11 @@ import AppointmentForm from './pages/AppointmentForm.jsx';
 import Visits from './pages/Visits.jsx';
 import VisitForm from './pages/VisitForm.jsx';
 import VisitDetail from './pages/VisitDetail.jsx';
+import ActiveVisits from './pages/ActiveVisits.jsx';
+import IPD from './pages/IPD.jsx';
+import IPDRecordsManagement from './pages/IPDRecordsManagement.jsx';
+import WardManagement from './pages/WardManagement.jsx';
+import BedManagement from './pages/BedManagement.jsx';
 import Users from './pages/Users.jsx';
 import UserForm from './pages/UserForm.jsx';
 import Profile from './components/profile/Profile.jsx';
@@ -41,17 +48,31 @@ import Settings from './components/settings/Settings.jsx';
 import NotFound from './components/common/NotFound.jsx';
 import BillingDashboard from './pages/BillingDashboard.jsx';
 import Services from './pages/Services.jsx';
+import RadiologyDashboard from './pages/RadiologyDashboard.jsx';
+import Theatre from './pages/Theatre.jsx';
 import ServiceForm from './pages/ServiceForm.jsx';
 import Invoices from './pages/Invoices.jsx';
 import InvoiceDetail from './pages/InvoiceDetail.jsx';
 import InvoiceForm from './pages/InvoiceForm.jsx';
 import Dispensing from './pages/Dispensing.jsx';
+import LabTests from './pages/LabTests.jsx';
+import LabTestDetail from './pages/LabTestDetail.jsx';
+import CompletedLabTests from './pages/CompletedLabTests.jsx';
 import DirectDispensing from './pages/DirectDispensing.jsx';
 import Requisition from './pages/Requisition.jsx';
+import StockTaking from './pages/StockTaking.jsx';
 import StoreBalance from './pages/StoreBalance.jsx';
 import ItemPricing from './pages/ItemPricing.jsx';
 import ItemReceiving from './pages/ItemReceiving.jsx';
 import IncomingItems from './pages/IncomingItems.jsx';
+import MortuaryDashboard from './pages/MortuaryDashboard.jsx';
+import CorpseRegistration from './pages/CorpseRegistration.jsx';
+import CorpseDetail from './pages/CorpseDetail.jsx';
+import CabinetManagement from './pages/CabinetManagement.jsx';
+import ReleaseManagement from './pages/ReleaseManagement.jsx';
+import TheatreRoomsManagement from './pages/TheatreRoomsManagement.jsx';
+import TheatreProceduresManagement from './pages/TheatreProceduresManagement.jsx';
+import Reports from './pages/Reports.jsx';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -91,8 +112,26 @@ const ProtectedRoute = ({ children, requiredPermissions = [], requiredRoles = []
 // Layout Component
 const AppLayout = ({ children }) => {
   const { isAuthenticated } = useAuth();
+  const location = useLocation();
 
-  if (!isAuthenticated) {
+  // List of public routes that should NOT have the sidebar
+  const publicRoutes = [
+    '/',
+    '/home',
+    '/about',
+    '/our-services',
+    '/login',
+    '/forgot-password',
+    '/register'
+  ];
+
+  // Check if current route is public or starts with public route patterns
+  const isPublicRoute = publicRoutes.includes(location.pathname) || 
+                        location.pathname.startsWith('/reset-password') ||
+                        location.pathname.startsWith('/verify-email');
+
+  // Don't wrap public routes or unauthenticated users with sidebar layout
+  if (!isAuthenticated || isPublicRoute) {
     return children;
   }
 
@@ -120,6 +159,38 @@ const AppContent = () => {
     <Router>
       <AppLayout>
         <Routes>
+          {/* Public Routes - These should NOT have sidebar */}
+          <Route path="/" element={<Home />} />
+          <Route path="/home" element={<Home />} />
+          <Route path="/about" element={<AboutUs />} />
+          <Route path="/our-services" element={<ServicesPage />} />
+
+          {/* Auth Routes */}
+          <Route path="/login" element={
+            isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginForm />
+          } />
+          <Route path="/forgot-password" element={
+            isAuthenticated ? <Navigate to="/dashboard" replace /> : <ForgotPasswordForm />
+          } />
+          <Route path="/reset-password/:token" element={
+            isAuthenticated ? <Navigate to="/dashboard" replace /> : <ResetPasswordForm />
+          } />
+          <Route path="/verify-email/:token" element={<VerifyEmail />} />
+
+          {/* Protected Routes - These SHOULD have sidebar */}
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
+
+          {/* Reports Routes */}
+          <Route path="/reports" element={
+            <ProtectedRoute requiredRoles={['admin']}>
+              <Reports />
+            </ProtectedRoute>
+          } />
+
           {/* User Management Routes */}
           <Route path="/users" element={
             <ProtectedRoute requiredRoles={['admin']}>
@@ -137,28 +208,6 @@ const AppContent = () => {
             </ProtectedRoute>
           } />
 
-          {/* Public Routes */}
-          <Route path="/login" element={
-            isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginForm />
-          } />
-          <Route path="/register" element={
-            isAuthenticated ? <Navigate to="/dashboard" replace /> : <RegisterForm />
-          } />
-          <Route path="/forgot-password" element={
-            isAuthenticated ? <Navigate to="/dashboard" replace /> : <ForgotPasswordForm />
-          } />
-          <Route path="/reset-password/:token" element={
-            isAuthenticated ? <Navigate to="/dashboard" replace /> : <ResetPasswordForm />
-          } />
-          <Route path="/verify-email/:token" element={<VerifyEmail />} />
-
-          {/* Protected Routes */}
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } />
-
           {/* Patient Routes */}
           <Route path="/patients" element={
             <ProtectedRoute requiredRoles={['admin', 'receptionist']}>
@@ -171,12 +220,12 @@ const AppContent = () => {
             </ProtectedRoute>
           } />
           <Route path="/patients/new" element={
-            <ProtectedRoute requiredPermissions={['write:patients']}>
+            <ProtectedRoute requiredRoles={['admin', 'receptionist']}>
               <PatientForm />
             </ProtectedRoute>
           } />
           <Route path="/patients/:id/edit" element={
-            <ProtectedRoute requiredPermissions={['write:patients']}>
+            <ProtectedRoute requiredRoles={['admin', 'receptionist']}>
               <PatientForm />
             </ProtectedRoute>
           } />
@@ -193,45 +242,76 @@ const AppContent = () => {
             </ProtectedRoute>
           } />
           <Route path="/doctors/schedule/:id" element={
-            <ProtectedRoute requiredPermissions={['write:doctors']}>
+            <ProtectedRoute requiredRoles={['admin']}>
               <DoctorSchedule />
             </ProtectedRoute>
           } />
 
           {/* Appointment Routes */}
           <Route path="/appointments" element={
-            <ProtectedRoute requiredPermissions={['read:appointments']}>
+            <ProtectedRoute requiredRoles={['admin', 'receptionist', 'doctor']}>
               <Appointments />
             </ProtectedRoute>
           } />
           <Route path="/appointments/new" element={
-            <ProtectedRoute requiredPermissions={['write:appointments']}>
+            <ProtectedRoute requiredRoles={['admin', 'receptionist']}>
               <AppointmentForm />
             </ProtectedRoute>
           } />
           <Route path="/appointments/:id/edit" element={
-            <ProtectedRoute requiredPermissions={['write:appointments']}>
+            <ProtectedRoute requiredRoles={['admin', 'receptionist']}>
               <AppointmentForm />
             </ProtectedRoute>
           } />
 
           {/* Visit Routes */}
           <Route path="/visits" element={
-            <ProtectedRoute requiredPermissions={['read:visits']}>
+            <ProtectedRoute requiredRoles={['admin', 'receptionist']}>
               <Visits />
             </ProtectedRoute>
           } />
+          <Route path="/visits/end-visit" element={
+            <ProtectedRoute requiredRoles={['admin', 'receptionist']}>
+              <ActiveVisits />
+            </ProtectedRoute>
+          } />
           <Route path="/visits/new" element={
-            <ProtectedRoute requiredPermissions={['write:visits']}>
+            <ProtectedRoute requiredRoles={['admin', 'receptionist']}>
               <VisitForm />
             </ProtectedRoute>
           } />
           <Route path="/visits/:id" element={
-            <ProtectedRoute requiredPermissions={['read:visits']}>
+            <ProtectedRoute requiredRoles={['admin', 'doctor']}>
               <VisitDetail />
             </ProtectedRoute>
           } />
 
+          {/* IPD Routes */}
+          <Route path="/admission" element={
+            <ProtectedRoute requiredRoles={['admin', 'doctor', 'nurse']}>
+              <IPD />
+            </ProtectedRoute>
+          } />
+          <Route path="/ipd" element={
+            <ProtectedRoute requiredRoles={['admin', 'doctor', 'nurse']}>
+              <IPDRecordsManagement />
+            </ProtectedRoute>
+          } />
+
+          {/** Ward Management Routes */}
+          <Route path="/wards" element={
+            <ProtectedRoute requiredRoles={['admin', 'nurse']}>
+              <WardManagement />
+            </ProtectedRoute>
+          } />
+          {/** Bed Management Routes */}
+          <Route path="/beds" element={
+            <ProtectedRoute requiredRoles={['admin', 'nurse']}>
+              <BedManagement />
+            </ProtectedRoute>
+          } />
+
+          {/* Billing Routes */}
           <Route path="/billing" element={
             <ProtectedRoute requiredRoles={['admin', 'receptionist']}>
               <BillingDashboard />
@@ -247,13 +327,13 @@ const AppContent = () => {
               <InvoiceForm />
             </ProtectedRoute>
           } />
-
           <Route path="/billing/invoices/:id" element={
             <ProtectedRoute requiredRoles={['admin', 'receptionist']}>
               <InvoiceDetail />
             </ProtectedRoute>
           } />
 
+          {/* Services Routes */}
           <Route path="/services" element={
             <ProtectedRoute requiredRoles={['admin']}>
               <Services />
@@ -267,6 +347,47 @@ const AppContent = () => {
           <Route path="/services/edit/:id" element={
             <ProtectedRoute requiredRoles={['admin']}>
               <ServiceForm />
+            </ProtectedRoute>
+          } />
+
+          {/* Lab Test Routes */}
+          <Route path="/lab-tests" element={
+            <ProtectedRoute requiredRoles={['admin', 'lab_technician']}>
+              <LabTests />
+            </ProtectedRoute>
+          } />
+          <Route path="/lab-tests/:id" element={
+            <ProtectedRoute requiredRoles={['admin', 'lab_technician', 'doctor']}>
+              <LabTestDetail />
+            </ProtectedRoute>
+          } />
+          <Route path="/lab-tests/completed" element={
+            <ProtectedRoute requiredRoles={['admin', 'doctor']}>
+              <CompletedLabTests />
+            </ProtectedRoute>
+          } />
+
+          {/* Radiology Routes */}
+          <Route path="/radiology" element={
+            <ProtectedRoute requiredRoles={['admin', 'radiologist']}>
+              <RadiologyDashboard />
+            </ProtectedRoute>
+          } />
+
+          {/* Theatre Routes */}
+          <Route path="/theatre-scheduling" element={
+            <ProtectedRoute requiredRoles={['admin', 'doctor']}>
+              <Theatre />
+            </ProtectedRoute>
+          } />
+          <Route path="/theatres" element={
+            <ProtectedRoute requiredRoles={['admin']}>
+              <TheatreRoomsManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/theatre-procedures" element={
+            <ProtectedRoute requiredRoles={['admin', 'surgeon']}>
+              <TheatreProceduresManagement />
             </ProtectedRoute>
           } />
 
@@ -291,6 +412,11 @@ const AppContent = () => {
               <StoreBalance />
             </ProtectedRoute>
           } />
+          <Route path="/stock-taking" element={
+            <ProtectedRoute requiredRoles={['admin', 'pharmacist']}>
+              <StockTaking />
+            </ProtectedRoute>
+          } />
           <Route path="/item-pricing" element={
             <ProtectedRoute requiredRoles={['admin']}>
               <ItemPricing />
@@ -307,6 +433,33 @@ const AppContent = () => {
             </ProtectedRoute>
           } />
 
+          {/* Mortuary Routes */}
+          <Route path="/corpses" element={
+            <ProtectedRoute requiredRoles={['admin', 'mortuary_attendant']}>
+              <MortuaryDashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/corpses/new" element={
+            <ProtectedRoute requiredRoles={['admin', 'mortuary_attendant']}>
+              <CorpseRegistration />
+            </ProtectedRoute>
+          } />
+          <Route path="/corpses/:id" element={
+            <ProtectedRoute requiredRoles={['admin', 'mortuary_attendant']}>
+              <CorpseDetail />
+            </ProtectedRoute>
+          } />
+          <Route path="/cabinets" element={
+            <ProtectedRoute requiredRoles={['admin', 'mortuary_attendant']}>
+              <CabinetManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/releases" element={
+            <ProtectedRoute requiredRoles={['admin', 'mortuary_attendant']}>
+              <ReleaseManagement />
+            </ProtectedRoute>
+          } />
+
           {/* User Profile Routes */}
           <Route path="/profile" element={
             <ProtectedRoute>
@@ -314,21 +467,9 @@ const AppContent = () => {
             </ProtectedRoute>
           } />
 
-          {/* User Management Routes */}
-          <Route path="/users/new" element={
-            <ProtectedRoute requiredRoles={['admin']}>
-              <UserForm />
-            </ProtectedRoute>
-          } />
-          <Route path="/users/:id/edit" element={
-            <ProtectedRoute requiredRoles={['admin']}>
-              <UserForm />
-            </ProtectedRoute>
-          } />
-
           {/* Settings Routes */}
           <Route path="/settings" element={
-            <ProtectedRoute requiredRoles={['admin', 'doctor', 'receptionist']}>
+            <ProtectedRoute>
               <Settings />
             </ProtectedRoute>
           } />
@@ -337,10 +478,7 @@ const AppContent = () => {
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
           <Route path="/404" element={<NotFound />} />
 
-          {/* Default Routes */}
-          <Route path="/" element={
-            isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
-          } />
+          {/* Catch all - redirect to 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </AppLayout>
@@ -355,32 +493,31 @@ const App = () => {
       <HelmetProvider>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            {/* REMOVED: <DataProvider> */}
-              <AppContent />
-              <Toaster
-                position="top-right"
-                toastOptions={{
-                  duration: 4000,
-                  style: {
-                    background: '#363636',
-                    color: '#fff',
+            <AppContent />
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                duration: 4000,
+                style: {
+                  background: '#363636',
+                  color: '#fff',
+                },
+                success: {
+                  duration: 3000,
+                  iconTheme: {
+                    primary: '#10B981',
+                    secondary: '#fff',
                   },
-                  success: {
-                    duration: 3000,
-                    iconTheme: {
-                      primary: '#10B981',
-                      secondary: '#fff',
-                    },
+                },
+                error: {
+                  duration: 3000,
+                  iconTheme: {
+                    primary: '#EF4444',
+                    secondary: '#fff',
                   },
-                  error: {
-                    duration: 5000,
-                    iconTheme: {
-                      primary: '#EF4444',
-                      secondary: '#fff',
-                    },
-                  },
-                }}
-              />
+                },
+              }}
+            />
           </AuthProvider>
         </QueryClientProvider>
       </HelmetProvider>

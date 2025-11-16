@@ -1,19 +1,40 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import { useQuery, useMutation, useQueryClient } from 'react-query';
-import Select from 'react-select';
+import { Link } from 'react-router-dom';
+import { useMutation, useQueryClient, useQuery } from 'react-query';
+import Select from 'react-select/async';
 import { toast } from 'react-hot-toast';
+import { debounce } from 'lodash';
 import { labTestService } from '../../utils/labTestService';
-import { visitService } from '../../utils/visitService';
+import api from '../../utils/api';
+import LoadingSpinner from '../common/LoadingSpinner';
 
-const LabOrderForm = ({ visitId, existingOrders }) => {
-  const { control, handleSubmit, reset, formState: { isSubmitting } } = useForm();
+// const labTestService = {
+//   getAll: () => api.get('/lab-tests'),
+//   create: (data) => api.post('/lab-tests', data),
+//   getById: () => api.get(`/lab-tests/${id}`),
+//   update: (id, data) => api.put(`/lab-tests/${id}`, data),
+// };
+
+const LabOrderForm = ({ visitId, existingOrders, patientId }) => {
+  const { control, register, handleSubmit, reset, formState: { isSubmitting } } = useForm();
   const queryClient = useQueryClient();
+  
+  // const { data: testData, isLoading, error } = useQuery('labTests', labTestService.getAll);
 
-  const { data: labTestsData, isLoading: isLoadingTests } = useQuery('labTests', labTestService.getAll);
-  const testOptions = labTestsData?.data?.map(t => ({ value: t.name, label: t.name })) || [];
+  // if (isLoading) {
+  //   return <LoadingSpinner />;
+  // }
 
-  const mutation = useMutation(visitService.addLabOrder, {
+  // if (error) {
+  //   toast.error('Failed to fetch completed lab tests');
+  //   return <div className="text-white text-center">Error loading data. Please refresh page.</div>
+  // }
+
+  // const tests = testData?.data || [];
+  // const completedTests = tests.filter(req => req.status === 'Completed', patientId);
+
+  const mutation = useMutation(labTestService.create, {
     onSuccess: () => {
       toast.success('Lab order added!');
       queryClient.invalidateQueries(['visit', visitId]);
@@ -22,36 +43,74 @@ const LabOrderForm = ({ visitId, existingOrders }) => {
     onError: (error) => toast.error(error.response?.data?.message || 'Failed to add order.'),
   });
 
+
+  const loadOptions = async (inputValue, callback) => {
+    if (inputValue.length < 2) {
+      callback([]);
+      return;
+    }
+    try {
+      const { data } = await api.get(`/services/search?category=Lab Test&name=${inputValue}`);
+      const options = data.data.map(service => ({
+        value: service.name,
+        label: `${service.name} - Tsh.${service.price}`
+      }));
+      callback(options);
+    } catch (error) {
+      console.error("Error searching lab tests:", error);
+      callback([]);
+    }
+  };
+
+  // Debounce the loadOptions function to prevent excessive API calls
+  const debouncedLoadOptions = useCallback(debounce(loadOptions, 400), []);
+
   const onSubmit = (data) => {
+    // data.test will be an object like { value: 'Blood Test', label: 'Blood Test - $50' }
+    if (!data.test) {
+        toast.error("Please select a test.");
+        return;
+    }
     const orderData = { testName: data.test.value, notes: data.notes };
-    mutation.mutate({ visitId, orderData });
+    mutation.mutate({ visit: visitId, patient: patientId, orderData });
   };
 
   return (
-    <div>
+    <div className="container mx-auto p-6">
       <h4 className="font-semibold mb-2">New Lab Order</h4>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mb-6 p-4 border rounded-lg">
         <div>
-          <label className="label-field">Test Name</label>
-          <Controller name="test" control={control} render={({ field }) => (
-            <Select {...field} options={testOptions} isLoading={isLoadingTests} isClearable />
-          )} />
+          <label className="label-field">Search for a Test</label>
+          <Controller
+            name="test"
+            control={control}
+            render={({ field }) => (
+              <Select
+                {...field}
+                loadOptions={debouncedLoadOptions}
+                isClearable
+                placeholder="Type to search..."
+                noOptionsMessage={({ inputValue }) => 
+                  inputValue.length < 2 ? "Please enter 2 or more characters" : "No tests found"
+                }
+              />
+            )}
+          />
         </div>
         <div>
           <label className="label-field">Notes (Optional)</label>
-          <input {...control.register('notes')} className="input-field" />
+          <input {...register('notes')} className="input-field" />
         </div>
         <div className="flex justify-end">
           <button type="submit" className="btn-primary" disabled={isSubmitting}>Add Order</button>
         </div>
       </form>
-      <h4 className="font-semibold mb-2">Existing Orders</h4>
-      <ul className="space-y-2">
+      {/* <h4 className="font-semibold mb-2">Existing Orders</h4>
+      {/* <ul className="space-y-2">
         {existingOrders?.map(order => (
           <li key={order._id} className="p-2 border rounded-md bg-gray-50">{order.testName} - <span className="capitalize text-gray-600">{order.status}</span></li>
         ))}
-        {existingOrders?.length === 0 && <p className="text-gray-500">No lab orders yet.</p>}
-      </ul>
+      </ul> */}
     </div>
   );
 };

@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
+import { toast } from 'react-hot-toast';
 import api from "../utils/api.js";
 
 export default function IncomingItems() {
   const [incomingRequests, setIncomingRequests] = useState([]);
   const [initialTotal, setInitialTotal] = useState(0);
-  const [alert, setAlert] = useState(null);
 
   const fetchIncomingItems = async () => {
     try {
@@ -13,8 +13,7 @@ export default function IncomingItems() {
       setInitialTotal(response.data.data.length);
     } catch (error) {
       console.error("Failed to fetch incoming items", error);
-      setAlert("Failed to load incoming items.");
-      setTimeout(() => setAlert(null), 3000);
+      toast.error("Failed to load incoming items.");
     }
   };
 
@@ -28,13 +27,10 @@ export default function IncomingItems() {
 
     try {
       await api.put(`/incoming-items/${id}`, { received: true });
-      // Show alert
-      setAlert(`Received ${item.quantity} of ${item.name}`);
-      setTimeout(() => setAlert(null), 3000);
-      fetchIncomingItems(); // Re-fetch to update the list
+      toast.success(`Received ${item.quantity} of ${item.name}`);
+      fetchIncomingItems();
     } catch (error) {
-      setAlert("Failed to receive item.");
-      setTimeout(() => setAlert(null), 3000);
+      toast.error("Failed to receive item.");
       console.error(error);
     }
   };
@@ -83,13 +79,6 @@ export default function IncomingItems() {
           </div>
         )}
       </div>
-
-      {/* Toast Alert */}
-      {alert && (
-        <div className="fixed bottom-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg">
-          {alert}
-        </div>
-      )}
     </div>
   );
 }

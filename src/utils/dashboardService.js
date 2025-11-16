@@ -1,11 +1,22 @@
 import api from './api';
 
 export const dashboardService = {
-  /**
-   * Fetches general statistics for the admin dashboard.
-   */
-  getStats: async () => {
-    const response = await api.get('/dashboard/stats');
-    return response.data;
+  getAdminStats: async () => {
+    return await api.get('/dashboard/admin/stats');
+  },
+  getAdminActivity: async () => {
+    return await api.get('/dashboard/admin/recent-activity');
+  },
+  getDoctorStats: async () => {
+    return await api.get('/dashboard/doctor/stats');
+  },
+  getDoctorQueue: async () => {
+    return await api.get('/dashboard/doctor/queue');
+  },
+  getReceptionistStats: async () => {
+    return await api.get('/dashboard/receptionist/stats');
+  },
+  getReceptionistAppointments: async () => {
+    return await api.get('/dashboard/receptionist/appointments');
   },
 };

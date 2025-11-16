@@ -54,9 +54,9 @@ const BillingDashboard = () => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-TZ', {
       style: 'currency',
-      currency: 'USD'
+      currency: 'TZS'
     }).format(amount || 0);
   };
 
@@ -88,18 +88,18 @@ const BillingDashboard = () => {
         </div>
         <div className="flex space-x-3">
           <button
+            onClick={fetchBillingData}
+            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
+          </button>
+          <button
             onClick={() => navigate('/billing/invoices/new')}
             className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             <Plus className="w-4 h-4 mr-2" />
             New Invoice
-          </button>
-          <button
-            onClick={() => navigate('/billing/payments/new')}
-            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-          >
-            <CreditCard className="w-4 h-4 mr-2" />
-            Record Payment
           </button>
         </div>
       </div>
@@ -288,7 +288,7 @@ const BillingDashboard = () => {
       {/* Quick Actions */}
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2  gap-4">
           <button
             onClick={() => navigate('/billing/invoices')}
             className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center"
@@ -296,13 +296,13 @@ const BillingDashboard = () => {
             <FileText className="w-6 h-6 mx-auto mb-2 text-gray-600" />
             <span className="text-sm">Manage Invoices</span>
           </button>
-          <button
+          {/* <button
             onClick={() => navigate('/billing/reports')}
             className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center"
           >
             <Download className="w-6 h-6 mx-auto mb-2 text-gray-600" />
             <span className="text-sm">Generate Reports</span>
-          </button>
+          </button> */}
           <button
             onClick={() => navigate('/billing/insurance')}
             className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center"
@@ -317,13 +317,13 @@ const BillingDashboard = () => {
             <Search className="w-6 h-6 mx-auto mb-2 text-gray-600" />
             <span className="text-sm">Patient Statements</span>
           </button>
-          <button
+          {/* <button
             onClick={fetchBillingData}
             className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center"
           >
             <RefreshCw className="w-6 h-6 mx-auto mb-2 text-gray-600" />
             <span className="text-sm">Refresh Data</span>
-          </button>
+          </button> */}
         </div>
       </div>
     </div>

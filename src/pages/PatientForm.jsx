@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Save, User, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, User, Loader2, MapPin, Phone, ShieldCheck, CrossIcon } from 'lucide-react';
 import { patientService } from '../utils/patientService.js';
 
 const PatientForm = () => {
@@ -10,17 +10,18 @@ const PatientForm = () => {
   
   const [formData, setFormData] = useState({
     firstName: '',
+    middleName: '',
     lastName: '',
     email: '',
     phone: '',
     dateOfBirth: '',
     gender: '',
     address: {
+      country: 'Tanzania, United Republic of',
+      region: '',
+      district: '',
+      ward: '',
       street: '',
-      city: '',
-      state: '',
-      zipCode: '',
-      country: 'Tanzania'
     },
     bloodType: '',
     emergencyContact: {
@@ -31,12 +32,11 @@ const PatientForm = () => {
     medicalHistory: '',
     allergies: '',
     currentMedications: '',
+    hasInsurance: false,
     insurance: {
       provider: '',
-      policyNumber: '',
-      groupNumber: ''
+      membershipNumber: '',
     },
-    occupation: '',
     maritalStatus: ''
   });
 
@@ -57,7 +57,6 @@ const PatientForm = () => {
       setIsLoading(true);
       const response = await patientService.getPatientById(id);
       
-      // Handle different response structures more defensively
       let patientData;
       if (response?.data?.patient) {
         patientData = response.data.patient;
@@ -67,31 +66,30 @@ const PatientForm = () => {
         patientData = response;
       }
       
-      // Ensure we have valid patient data
       if (!patientData) {
         throw new Error('No patient data received from server');
       }
       
-      // Ensure nested objects exist with proper defaults
       const processedData = {
         firstName: patientData.firstName || '',
+        middleName: patientData.middleName || '',
         lastName: patientData.lastName || '',
         email: patientData.email || '',
         phone: patientData.phone || '',
         dateOfBirth: patientData.dateOfBirth || '',
         gender: patientData.gender || '',
         bloodType: patientData.bloodType || '',
-        occupation: patientData.occupation || '',
         maritalStatus: patientData.maritalStatus || '',
         medicalHistory: patientData.medicalHistory || '',
         allergies: patientData.allergies || '',
         currentMedications: patientData.currentMedications || '',
+        hasInsurance: !!(patientData.insurance?.provider),
         address: {
+          country: patientData.address?.country || 'Tanzania, United Republic of',
+          region: patientData.address?.region || '',
+          district: patientData.address?.district || '',
+          ward: patientData.address?.ward || '',
           street: patientData.address?.street || '',
-          city: patientData.address?.city || '',
-          state: patientData.address?.state || '',
-          zipCode: patientData.address?.zipCode || '',
-          country: patientData.address?.country || 'Tanzania'
         },
         emergencyContact: {
           name: patientData.emergencyContact?.name || '',
@@ -100,12 +98,10 @@ const PatientForm = () => {
         },
         insurance: {
           provider: patientData.insurance?.provider || '',
-          policyNumber: patientData.insurance?.policyNumber || '',
-          groupNumber: patientData.insurance?.groupNumber || ''
+          membershipNumber: patientData.insurance?.membershipNumber || '',
         }
       };
       
-      // Format date for input if it exists
       if (processedData.dateOfBirth) {
         try {
           processedData.dateOfBirth = new Date(processedData.dateOfBirth).toISOString().split('T')[0];
@@ -129,9 +125,12 @@ const PatientForm = () => {
   const validateForm = () => {
     const newErrors = {};
 
-    // Required fields validation
     if (!formData.firstName?.trim()) {
       newErrors.firstName = 'First name is required';
+    }
+
+    if (!formData.middleName?.trim()) {
+      newErrors.middleName = 'Middle name is required';
     }
 
     if (!formData.lastName?.trim()) {
@@ -161,13 +160,13 @@ const PatientForm = () => {
     if (!formData.gender) {
       newErrors.gender = 'Gender is required';
     }
+    
+    if (!formData.address?.region?.trim()) {
+      newErrors['address.region'] = 'Region is required';
+    }
 
     if (!formData.address?.street?.trim()) {
       newErrors['address.street'] = 'Street address is required';
-    }
-
-    if (!formData.address?.city?.trim()) {
-      newErrors['address.city'] = 'City is required';
     }
 
     if (!formData.emergencyContact?.name?.trim()) {
@@ -176,6 +175,17 @@ const PatientForm = () => {
 
     if (!formData.emergencyContact?.phone?.trim()) {
       newErrors['emergencyContact.phone'] = 'Emergency contact phone is required';
+    }
+
+    // Validate insurance fields if hasInsurance is true
+    if (formData.hasInsurance) {
+      if (!formData.insurance?.provider?.trim()) {
+        newErrors['insurance.provider'] = 'Insurance provider is required';
+      }
+
+      if (!formData.insurance?.membershipNumber?.trim()) {
+        newErrors['insurance.membershipNumber'] = 'Membership number is required';
+      }
     }
 
     setErrors(newErrors);
@@ -193,11 +203,20 @@ const PatientForm = () => {
     setIsSubmitting(true);
     
     try {
+      // If patient doesn't have insurance, clear insurance data
+      const submitData = { ...formData };
+      if (!submitData.hasInsurance) {
+        submitData.insurance = {
+          provider: '',
+          membershipNumber: '',
+        };
+      }
+
       if (isEditing) {
-        await patientService.updatePatient(id, formData);
+        await patientService.updatePatient(id, submitData);
         toast.success('Patient updated successfully');
       } else {
-        await patientService.createPatient(formData);
+        await patientService.createPatient(submitData);
         toast.success('Patient created successfully');
       }
       navigate('/patients');
@@ -206,7 +225,6 @@ const PatientForm = () => {
         (isEditing ? 'Failed to update patient' : 'Failed to create patient');
       toast.error(message);
       
-      // Handle validation errors from backend
       if (error.response?.data?.errors) {
         setErrors(error.response.data.errors);
       }
@@ -216,10 +234,14 @@ const PatientForm = () => {
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     
-    // Handle nested object properties
-    if (name.includes('.')) {
+    if (type === 'checkbox') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: checked
+      }));
+    } else if (name.includes('.')) {
       const [parent, child] = name.split('.');
       setFormData(prev => ({
         ...prev,
@@ -235,7 +257,6 @@ const PatientForm = () => {
       }));
     }
     
-    // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -245,10 +266,11 @@ const PatientForm = () => {
   };
 
   const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+  const insuranceProvider = ['NHIF', 'NSSF', 'ASSEMBLE', 'BRITAM'];
   const genderOptions = [
-    { value: 'male', label: 'Male' },
-    { value: 'female', label: 'Female' },
-    { value: 'other', label: 'Other' }
+    { value: 'Male', label: 'Male' },
+    { value: 'Female', label: 'Female' },
+    { value: 'Other', label: 'Other' }
   ];
   const maritalStatuses = ['Single', 'Married', 'Divorced', 'Widowed', 'Other'];
   const relationships = ['Spouse', 'Parent', 'Child', 'Sibling', 'Friend', 'Other'];
@@ -262,15 +284,8 @@ const PatientForm = () => {
   }
 
   return (
-    <div className="p-6">
+    <div className="max-w-6xl mx-auto min-h-screen p-4 sm:p-6 lg:p-8 font-sans">
       <div className="mb-6">
-        <button
-          onClick={() => navigate('/patients')}
-          className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Patients
-        </button>
         <div className="flex items-center">
           <User className="w-8 h-8 text-primary-600 mr-3" />
           <div>
@@ -284,14 +299,17 @@ const PatientForm = () => {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="max-w-4xl">
+      <form onSubmit={handleSubmit} className="space-y-6">
         {/* Personal Information */}
-        <div className="card">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Personal Information</h2>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+            <User className="mr-2 text-blue-500"/>
+            Client Basic Information
+          </h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 First Name *
               </label>
               <input
@@ -306,7 +324,22 @@ const PatientForm = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Middle Name *
+              </label>
+              <input
+                type="text"
+                name="middleName"
+                value={formData.middleName || ''}
+                onChange={handleChange}
+                className={`input-field ${errors.middleName ? 'border-red-500' : ''}`}
+                placeholder="Enter middle name"
+              />
+              {errors.middleName && <p className="mt-1 text-sm text-red-600">{errors.middleName}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Last Name *
               </label>
               <input
@@ -321,7 +354,7 @@ const PatientForm = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Email Address *
               </label>
               <input
@@ -336,7 +369,7 @@ const PatientForm = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Phone Number *
               </label>
               <input
@@ -351,7 +384,7 @@ const PatientForm = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Date of Birth *
               </label>
               <input
@@ -365,7 +398,7 @@ const PatientForm = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Gender *
               </label>
               <select
@@ -385,7 +418,7 @@ const PatientForm = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Blood Type
               </label>
               <select
@@ -402,7 +435,7 @@ const PatientForm = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Marital Status
               </label>
               <select
@@ -418,29 +451,76 @@ const PatientForm = () => {
               </select>
             </div>
           </div>
-
-          <div className="mt-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Occupation
-            </label>
-            <input
-              type="text"
-              name="occupation"
-              value={formData.occupation || ''}
-              onChange={handleChange}
-              className="input-field"
-              placeholder="Enter occupation"
-            />
-          </div>
         </div>
 
         {/* Address Information */}
         <div className="card mt-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Address Information</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+            <MapPin className="mr-2 text-blue-500" size={20} />
+            Address Information
+          </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Country
+              </label>
+              <input
+                type="text"
+                name="address.country"
+                value={formData.address?.country || 'Tanzania, United Republic of'}
+                readOnly
+                onChange={handleChange}
+                className="input-field"
+                placeholder="Enter country"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Region *
+              </label>
+              <input
+                type="text"
+                name="address.region"
+                value={formData.address?.region || ''}
+                onChange={handleChange}
+                className={`input-field ${errors['address.region'] ? 'border-red-500' : ''}`}
+                placeholder="Enter region"
+              />
+              {errors['address.region'] && <p className="mt-1 text-sm text-red-600">{errors['address.region']}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                District
+              </label>
+              <input
+                type="text"
+                name="address.district"
+                value={formData.address?.district || ''}
+                onChange={handleChange}
+                className="input-field"
+                placeholder="Enter district"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Ward
+              </label>
+              <input
+                type="text"
+                name="address.ward"
+                value={formData.address?.ward || ''}
+                onChange={handleChange}
+                className="input-field"
+                placeholder="Enter ward"
+              />
+            </div>
+
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Street Address *
               </label>
               <input
@@ -453,73 +533,19 @@ const PatientForm = () => {
               />
               {errors['address.street'] && <p className="mt-1 text-sm text-red-600">{errors['address.street']}</p>}
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                City *
-              </label>
-              <input
-                type="text"
-                name="address.city"
-                value={formData.address?.city || ''}
-                onChange={handleChange}
-                className={`input-field ${errors['address.city'] ? 'border-red-500' : ''}`}
-                placeholder="Enter city"
-              />
-              {errors['address.city'] && <p className="mt-1 text-sm text-red-600">{errors['address.city']}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                State/Region
-              </label>
-              <input
-                type="text"
-                name="address.state"
-                value={formData.address?.state || ''}
-                onChange={handleChange}
-                className="input-field"
-                placeholder="Enter state or region"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Zip/Postal Code
-              </label>
-              <input
-                type="text"
-                name="address.zipCode"
-                value={formData.address?.zipCode || ''}
-                onChange={handleChange}
-                className="input-field"
-                placeholder="Enter zip code"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Country
-              </label>
-              <input
-                type="text"
-                name="address.country"
-                value={formData.address?.country || 'Tanzania'}
-                onChange={handleChange}
-                className="input-field"
-                placeholder="Enter country"
-              />
-            </div>
           </div>
         </div>
 
         {/* Emergency Contact */}
         <div className="card mt-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Emergency Contact</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+            <Phone className="mr-2 text-blue-500 size" size={20} />
+            Emergency Contact
+          </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Emergency Contact Name *
               </label>
               <input
@@ -534,7 +560,7 @@ const PatientForm = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Emergency Contact Phone *
               </label>
               <input
@@ -549,7 +575,7 @@ const PatientForm = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Relationship
               </label>
               <select
@@ -569,11 +595,14 @@ const PatientForm = () => {
 
         {/* Medical Information */}
         <div className="card mt-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Medical Information</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+            <CrossIcon className="mr-2 text-blue-500" />
+            Medical Information
+          </h2>
           
           <div className="grid grid-cols-1 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Medical History
               </label>
               <textarea
@@ -587,7 +616,7 @@ const PatientForm = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Allergies
               </label>
               <textarea
@@ -601,7 +630,7 @@ const PatientForm = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Current Medications
               </label>
               <textarea
@@ -618,57 +647,67 @@ const PatientForm = () => {
 
         {/* Insurance Information */}
         <div className="card mt-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Insurance Information</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+            <ShieldCheck className="mr-2 text-blue-500" />
+            Insurance Information
+          </h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Insurance Provider
-              </label>
-              <input
-                type="text"
-                name="insurance.provider"
-                value={formData.insurance?.provider || ''}
-                onChange={handleChange}
-                className="input-field"
-                placeholder="Enter insurance provider name"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Policy Number
-              </label>
-              <input
-                type="text"
-                name="insurance.policyNumber"
-                value={formData.insurance?.policyNumber || ''}
-                onChange={handleChange}
-                className="input-field"
-                placeholder="Enter policy number"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Group Number
-              </label>
-              <input
-                type="text"
-                name="insurance.groupNumber"
-                value={formData.insurance?.groupNumber || ''}
-                onChange={handleChange}
-                className="input-field"
-                placeholder="Enter group number"
-              />
-            </div>
+          <div className="mb-6 flex items-center">
+            <input
+              type="checkbox"
+              id="hasInsurance"
+              name="hasInsurance"
+              checked={formData.hasInsurance || false}
+              onChange={handleChange}
+              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+            />
+            <label htmlFor="hasInsurance" className="ml-2 block text-sm font-medium text-gray-700">
+              Has Insurance?
+            </label>
           </div>
+
+          {formData.hasInsurance && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Insurance Provider *
+                </label>
+                <select
+                  name="insurance.provider"
+                  value={formData.insurance?.provider || ''}
+                  onChange={handleChange}
+                  className={`input-field ${errors['insurance.provider'] ? 'border-red-500' : ''}`}
+                >
+                  <option value="">Select insurance provider</option>
+                  {insuranceProvider.map(provider => (
+                    <option key={provider} value={provider}>{provider}</option>
+                  ))}
+                </select>
+                {errors['insurance.provider'] && <p className="mt-1 text-sm text-red-600">{errors['insurance.provider']}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Membership Number *
+                </label>
+                <input
+                  type="text"
+                  name="insurance.membershipNumber"
+                  value={formData.insurance?.membershipNumber || ''}
+                  onChange={handleChange}
+                  className={`input-field ${errors['insurance.membershipNumber'] ? 'border-red-500' : ''}`}
+                  placeholder="Enter membership number"
+                />
+                {errors['insurance.membershipNumber'] && <p className="mt-1 text-sm text-red-600">{errors['insurance.membershipNumber']}</p>}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="mt-6 flex justify-end space-x-4">
           <button
             type="button"
-            onClick={() => navigate('/patients')}
+            onClick={() => navigate('/patients/search')}
             className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
             disabled={isSubmitting}
           >
@@ -684,7 +723,7 @@ const PatientForm = () => {
             ) : (
               <Save className="w-4 h-4 mr-2" />
             )}
-            {isSubmitting ? 'Saving...' : (isEditing ? 'Update Patient' : 'Save Patient')}
+            {isSubmitting ? 'Saving...' : (isEditing ? 'Update Patient' : 'Register Patient')}
           </button>
         </div>
       </form>

@@ -4,6 +4,12 @@ const serviceService = {
   getAllServices: () => {
     return api.get('/services');
   },
+
+  searchServices: (category, name) => {
+    return api.get('/services/search', {
+      params: { category, name }
+    });
+  },
   
   getServiceById: (id) => {
     return api.get(`/services/${id}`);

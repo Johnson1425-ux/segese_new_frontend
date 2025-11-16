@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { User, Mail, Phone, Calendar, MapPin, Building, Shield, Edit, Save, X } from 'lucide-react';
+import { User, Mail, Phone, Shield, Edit, Save, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 
 const Profile = () => {
   const { user, updateProfile, isLoading } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const [showPasswordForm, setShowPasswordForm] = useState(false);
 
   const {
     register,
@@ -24,8 +23,6 @@ const Profile = () => {
       gender: user?.gender || '',
       address: user?.address || '',
       department: user?.department || '',
-      // specialization: user?.specialization || '',
-      licenseNumber: user?.licenseNumber || '',
     },
   });
 
@@ -54,10 +51,11 @@ const Profile = () => {
     const roleNames = {
       admin: 'Administrator',
       doctor: 'Doctor',
-      nurse: 'Nurse',
       receptionist: 'Receptionist',
       pharmacist: 'Pharmacist',
       lab_technician: 'Lab Technician',
+      radiologist:  'Radiologist',
+      mortuary_attendant: 'Mortuary Attendant',
       user: 'User',
     };
     return roleNames[role] || role;
@@ -127,12 +125,9 @@ const Profile = () => {
                 <p className="text-sm text-gray-500">{user?.email}</p>
                 <div className="mt-2 flex items-center space-x-4">
                   {getStatusBadge(user?.isActive, user?.isEmailVerified)}
-                  <span className="text-sm text-gray-500">
-                    Role: {getRoleDisplayName(user?.role)}
-                  </span>
                   {user?.employeeId && (
-                    <span className="text-sm text-gray-500">
-                      Employee ID: {user.employeeId}
+                    <span className="text-bold text-gray-600">
+                      {user.employeeId}
                     </span>
                   )}
                 </div>
@@ -148,23 +143,10 @@ const Profile = () => {
                     First Name
                   </label>
                   <div className="mt-1 relative">
-                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                    <input
-                      id="firstName"
-                      type="text"
-                      disabled={!isEditing}
-                      {...register('firstName', {
-                        required: 'First name is required',
-                        minLength: { value: 2, message: 'First name must be at least 2 characters' },
-                      })}
-                      className={`appearance-none relative block w-full px-10 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
-                        !isEditing ? 'bg-gray-50' : ''
-                      }`}
-                    />
+                    <div className='relative block px-3 py-2 border border-gray-300 bg-gray-50 rounded-md'>
+                      <span className="text-md text-gray-800">{user?.firstName}</span>
+                    </div>
                   </div>
-                  {errors.firstName && (
-                    <p className="mt-1 text-sm text-red-600">{errors.firstName.message}</p>
-                  )}
                 </div>
 
                 <div>
@@ -172,23 +154,10 @@ const Profile = () => {
                     Last Name
                   </label>
                   <div className="mt-1 relative">
-                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                    <input
-                      id="lastName"
-                      type="text"
-                      disabled={!isEditing}
-                      {...register('lastName', {
-                        required: 'Last name is required',
-                        minLength: { value: 2, message: 'Last name must be at least 2 characters' },
-                      })}
-                      className={`appearance-none relative block w-full px-10 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
-                        !isEditing ? 'bg-gray-50' : ''
-                      }`}
-                    />
+                    <div className="relative px-3 py-2 border border-gray-300 bg-gray-50 rounded-md">
+                      <span className="text-md text-gray-800">{user?.lastName}</span>
+                    </div>
                   </div>
-                  {errors.lastName && (
-                    <p className="mt-1 text-sm text-red-600">{errors.lastName.message}</p>
-                  )}
                 </div>
 
                 <div>
@@ -245,42 +214,21 @@ const Profile = () => {
                     Date of Birth
                   </label>
                   <div className="mt-1 relative">
-                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                    <input
-                      id="dateOfBirth"
-                      type="date"
-                      disabled={!isEditing}
-                      {...register('dateOfBirth')}
-                      defaultValue={formatDate(user?.dateOfBirth)}
-                      className={`appearance-none relative block w-full px-10 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
-                        !isEditing ? 'bg-gray-50' : ''
-                      }`}
-                    />
+                    <div className=" relative px-3 py-2 border border-gray-300 bg-gray-50 rounded-md">
+                      <span className='text-md text-gray-800'>{formatDate(user?.dateOfBirth)}</span>
+                    </div>
                   </div>
-                  {errors.dateOfBirth && (
-                    <p className="mt-1 text-sm text-red-600">{errors.dateOfBirth.message}</p>
-                  )}
                 </div>
 
                 <div>
                   <label htmlFor="gender" className="block text-sm font-medium text-gray-700">
                     Gender
                   </label>
-                  <select
-                    id="gender"
-                    disabled={!isEditing}
-                    {...register('gender')}
-                    className={`mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
-                      !isEditing ? 'bg-gray-50' : ''
-                    }`}
-                  >
-                    <option value="">Select Gender</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                    <option value="prefer_not_to_say">Prefer not to say</option>
-                  </select>
-                  {errors.gender && <p className="mt-1 text-sm text-red-600">{errors.gender.message}</p>}
+                  <div className="mt-1 relative">
+                    <div className="relative px-3 py-2 border border-gray-300 bg-gray-50 rounded-md">
+                      <span className="text-md text-gray-800">{user?.gender}</span>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="md:col-span-2">
@@ -288,7 +236,6 @@ const Profile = () => {
                     Address
                   </label>
                   <div className="mt-1 relative">
-                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                     <textarea
                       id="address"
                       rows="2"
@@ -314,67 +261,14 @@ const Profile = () => {
                     <>
                       <div>
                         <label htmlFor="department" className="block text-sm font-medium text-gray-700">
-                          Specialization
+                          Department
                         </label>
-                        <input
-                          id="department"
-                          type="text"
-                          disabled={!isEditing}
-                          {...register('department')}
-                          className={`mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
-                            !isEditing ? 'bg-gray-50' : ''
-                          }`}
-                          placeholder="e.g., Cardiology, Dermatology"
-                        />
-                        {errors.specialization && (
-                          <p className="mt-1 text-sm text-red-600">{errors.department.message}</p>
-                        )}
+                        <div className="mt-1 flex relative block px-3 py-2 border border-gray-300 rounded-md">
+                          <span className="text-md text-gray-800"> {user?.department} </span>
+                        </div>
                       </div>
-
-                      {/* <div>
-                        <label htmlFor="licenseNumber" className="block text-sm font-medium text-gray-700">
-                          Medical License Number
-                        </label>
-                        <input
-                          id="licenseNumber"
-                          type="text"
-                          disabled={!isEditing}
-                          {...register('licenseNumber')}
-                          className={`mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
-                            !isEditing ? 'bg-gray-50' : ''
-                          }`}
-                          placeholder="Enter medical license number"
-                        />
-                        {errors.licenseNumber && (
-                          <p className="mt-1 text-sm text-red-600">{errors.licenseNumber.message}</p>
-                        )}
-                      </div> */}
                     </>
                   )}
-
-                  {/* {(user?.role === 'nurse' || user?.role === 'receptionist' || user?.role === 'pharmacist' || user?.role === 'lab_technician') && (
-                    <div className={user?.role === 'doctor' ? '' : 'md:col-span-2'}>
-                      <label htmlFor="department" className="block text-sm font-medium text-gray-700">
-                        Department
-                      </label>
-                      <div className="mt-1 relative">
-                        <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                        <input
-                          id="department"
-                          type="text"
-                          disabled={!isEditing}
-                          {...register('department')}
-                          className={`appearance-none relative block w-full px-10 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
-                            !isEditing ? 'bg-gray-50' : ''
-                          }`}
-                          placeholder="e.g., Emergency, ICU, Pharmacy, Laboratory"
-                        />
-                      </div>
-                      {errors.department && (
-                        <p className="mt-1 text-sm text-red-600">{errors.department.message}</p>
-                      )}
-                    </div>
-                  )} */}
                 </div>
               </div>
             )}
@@ -485,4 +379,9 @@ const Profile = () => {
             )}
           </div>
         </form>
-      </
+      </div>
+    </div>
+  );
+};
+
+export default Profile;

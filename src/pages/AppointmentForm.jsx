@@ -5,7 +5,7 @@ import { ArrowLeft, Save, Calendar, Search, X, User, ChevronDown, Loader2, Steth
 import { patientService } from '../utils/patientService.js';
 import { doctorService } from '../utils/doctorService.js';
 import { appointmentService } from '../utils/appointmentService.js';
-import { apiHelpers } from '../utils/api.js';
+// import { apiHelpers } from '../utils/api.js';
 import LoadingSpinner from '../components/common/LoadingSpinner.jsx';
 
 const AppointmentForm = () => {
@@ -207,7 +207,7 @@ const AppointmentForm = () => {
           {/* Patient Search */}
           <div ref={patientSearchRef}>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Patient
+              Patient *
             </label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -238,7 +238,7 @@ const AppointmentForm = () => {
           {/* Doctor Search */}
           <div ref={doctorSearchRef}>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Doctor
+              Doctor *
             </label>
             <div className="relative">
               <Stethoscope className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -269,7 +269,7 @@ const AppointmentForm = () => {
           {/* Other form fields remain the same */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Appointment Date
+              Appointment Date *
             </label>
             <input
               type="date"
@@ -282,7 +282,7 @@ const AppointmentForm = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Appointment Time
+              Appointment Time *
             </label>
             <input
               type="time"
@@ -295,7 +295,7 @@ const AppointmentForm = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Appointment Type
+              Appointment Type *
             </label>
             <select
               name="type"
@@ -315,7 +315,7 @@ const AppointmentForm = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Duration
+              Duration *
             </label>
             <select
               name="duration"
@@ -333,7 +333,7 @@ const AppointmentForm = () => {
 
         <div className="mt-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Notes
+              Notes *
             </label>
             <textarea
               name="notes"

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { Plus, Search, Edit, Trash2, Eye, Loader2, RefreshCw } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Eye, Loader2, RefreshCw, MoreVertical } from 'lucide-react';
 import { patientService } from '../utils/patientService.js';
 import ConfirmationDialog from './ConfirmationDialog';
 
@@ -13,10 +13,13 @@ const Patients = () => {
   const [showModal, setShowModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(null);
+  const [openDropdown, setOpenDropdown] = useState(null);
   
   // Confirmation dialog state
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [patientToDelete, setPatientToDelete] = useState(null);
+  
+  const dropdownRef = useRef(null);
   
   const fetchPatients = async () => {
     try {
@@ -64,6 +67,7 @@ const Patients = () => {
   const handleDeleteClick = (patient) => {
     setPatientToDelete(patient);
     setShowConfirmDialog(true);
+    setOpenDropdown(null);
   };
 
   const handleDeleteConfirm = async () => {
@@ -92,6 +96,11 @@ const Patients = () => {
   const handleView = (patient) => {
     setSelectedPatient(patient);
     setShowModal(true);
+    setOpenDropdown(null);
+  };
+
+  const toggleDropdown = (patientId) => {
+    setOpenDropdown(openDropdown === patientId ? null : patientId);
   };
 
   const calculateAge = (dateOfBirth) => {
@@ -115,6 +124,125 @@ const Patients = () => {
       month: 'short',
       day: 'numeric'
     });
+  };
+
+  // Actions Dropdown Component
+  const ActionsDropdown = ({ patient, isOpen, onToggle }) => {
+    const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
+    const buttonRef = useRef(null);
+    const dropdownMenuRef = useRef(null);
+
+    useEffect(() => {
+      if (isOpen && buttonRef.current) {
+        const buttonRect = buttonRef.current.getBoundingClientRect();
+        const dropdownWidth = 192; // 48 * 4 = 12rem
+        const viewportHeight = window.innerHeight;
+        const dropdownHeight = 140; // Approximate height of dropdown
+        
+        // Calculate if dropdown should appear above or below the button
+        const spaceBelow = viewportHeight - buttonRect.bottom;
+        const shouldAppearAbove = spaceBelow < dropdownHeight && buttonRect.top > dropdownHeight;
+        
+        setDropdownPosition({
+          top: shouldAppearAbove ? buttonRect.top - dropdownHeight - 4 : buttonRect.bottom + 4,
+          left: Math.max(8, buttonRect.right - dropdownWidth) // Ensure it doesn't go off-screen
+        });
+      }
+    }, [isOpen]);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+      const handleClickOutside = (event) => {
+        if (dropdownMenuRef.current && !dropdownMenuRef.current.contains(event.target) && 
+            buttonRef.current && !buttonRef.current.contains(event.target)) {
+          setOpenDropdown(null);
+        }
+      };
+
+      if (isOpen) {
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+      }
+    }, [isOpen]);
+
+    return (
+      <div className="relative">
+        <button
+          ref={buttonRef}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle(patient._id);
+          }}
+          className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors duration-200"
+          title="More actions"
+        >
+          <MoreVertical className="w-4 h-4" />
+        </button>
+        
+        {isOpen && (
+          <>
+            {/* Higher z-index backdrop */}
+            <div 
+              className="fixed inset-0 z-[9998]" 
+              onClick={() => setOpenDropdown(null)} 
+            />
+            
+            {/* Dropdown menu with very high z-index */}
+            <div 
+              ref={dropdownMenuRef}
+              className="fixed bg-white rounded-md shadow-2xl border border-gray-200 py-1 z-[9999] w-48"
+              style={{
+                top: `${dropdownPosition.top}px`,
+                left: `${dropdownPosition.left}px`,
+                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleView(patient);
+                }}
+                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200 cursor-pointer"
+              >
+                <Eye className="w-4 h-4 mr-3 flex-shrink-0" />
+                View Details
+              </button>
+              
+              <Link
+                to={`/patients/${patient._id}/edit`}
+                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200 no-underline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenDropdown(null);
+                }}
+              >
+                <Edit className="w-4 h-4 mr-3 flex-shrink-0" />
+                Edit Patient
+              </Link>
+              
+              <hr className="my-1 border-gray-200" />
+              
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteClick(patient);
+                }}
+                className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-200 cursor-pointer"
+                disabled={isDeleting === patient._id}
+              >
+                {isDeleting === patient._id ? (
+                  <Loader2 className="w-4 h-4 mr-3 animate-spin flex-shrink-0" />
+                ) : (
+                  <Trash2 className="w-4 h-4 mr-3 flex-shrink-0" />
+                )}
+                Delete Patient
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    );
   };
 
   const PatientModal = ({ patient, onClose }) => (
@@ -186,18 +314,13 @@ const Patients = () => {
                 <label className="block text-sm font-medium text-gray-700">Marital Status</label>
                 <p className="mt-1 text-sm text-gray-900">{patient.maritalStatus || 'N/A'}</p>
               </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Occupation</label>
-                <p className="mt-1 text-sm text-gray-900">{patient.occupation || 'N/A'}</p>
-              </div>
             </div>
             
             <div>
               <label className="block text-sm font-medium text-gray-700">Address</label>
               <p className="mt-1 text-sm text-gray-900">
                 {patient.address ? 
-                  `${patient.address.street}, ${patient.address.city}, ${patient.address.state} ${patient.address.zipCode}, ${patient.address.country}`.replace(/,\s*,/g, ',').replace(/^,\s*|,\s*$/g, '') 
+                  `${patient.address.street}, ${patient.address.ward}, ${patient.address.district}, ${patient.address.region}, ${patient.address.country}`.replace(/,\s*,/g, ',').replace(/^,\s*|,\s*$/g, '') 
                   : 'N/A'
                 }
               </p>
@@ -286,13 +409,13 @@ const Patients = () => {
             <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
-          <Link
+          {/* <Link
             to="/patients/new"
             className="btn-primary flex items-center"
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Patient
-          </Link>
+          </Link> */}
         </div>
       </div>
 
@@ -376,7 +499,7 @@ const Patients = () => {
       </div>
 
       {/* Patients Table */}
-      <div className="card">
+      <div className="bg-white shadow-md rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -450,34 +573,11 @@ const Patients = () => {
                     {formatDate(patient.createdAt)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleView(patient)}
-                        className="text-blue-600 hover:text-blue-900"
-                        title="View Details"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <Link
-                        to={`/patients/${patient._id}/edit`}
-                        className="text-indigo-600 hover:text-indigo-900"
-                        title="Edit Patient"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Link>
-                      <button
-                        onClick={() => handleDeleteClick(patient)}
-                        className="text-red-600 hover:text-red-900"
-                        title="Delete Patient"
-                        disabled={isDeleting === patient._id}
-                      >
-                        {isDeleting === patient._id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
+                    <ActionsDropdown 
+                      patient={patient}
+                      isOpen={openDropdown === patient._id}
+                      onToggle={toggleDropdown}
+                    />
                   </td>
                 </tr>
               ))}

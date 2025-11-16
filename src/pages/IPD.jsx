@@ -1,0 +1,863 @@
+import React, { useState, useEffect } from 'react';
+import api from '../utils/api';
+import { 
+  BedDouble, Search, AlertCircle, CheckCircle, Clock, 
+  FileText, User, Plus, Calendar, MapPin, Users, Activity,
+  RefreshCw, XCircle
+} from 'lucide-react';
+
+const IPD = () => {
+  // State management
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  
+  // Patient search
+  const [patientSearch, setPatientSearch] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [selectedPatient, setSelectedPatient] = useState(null);
+  
+  // Wards and beds
+  const [wards, setWards] = useState([]);
+  const [beds, setBeds] = useState([]);
+  const [availableBeds, setAvailableBeds] = useState([]);
+  const [loadingWards, setLoadingWards] = useState(false);
+  const [loadingBeds, setLoadingBeds] = useState(false);
+  
+  // Doctors and nurses
+  const [doctors, setDoctors] = useState([]);
+  const [nurses, setNurses] = useState([]);
+  const [loadingDoctors, setLoadingDoctors] = useState(false);
+  
+  // Inpatient records
+  const [inpatientRecords, setInpatientRecords] = useState([]);
+  const [loadingRecords, setLoadingRecords] = useState(false);
+  
+  // Form data
+  const [admissionData, setAdmissionData] = useState({
+    patient: '',
+    ward: '',
+    bed: '',
+    admissionDate: new Date().toISOString().slice(0, 16),
+    admissionReason: '',
+    admittingDoctor: '',
+    attendingPhysician: '',
+    assignedNurse: '',
+    admissionType: 'elective',
+    emergencyContact: {
+      name: '',
+      phone: '',
+      relationship: '',
+      email: ''
+    },
+    insurance: {
+      provider: '',
+      policyNumber: '',
+      approvalNumber: ''
+    },
+    expectedDischargeDate: '',
+    status: 'admitted',
+    notes: ''
+  });
+
+  // Load wards, nurses and doctors on component mount
+  useEffect(() => {
+    loadWards();
+    loadDoctors();
+    loadNurses();
+  }, []);
+
+  // Load doctors
+  const loadDoctors = async () => {
+    setLoadingDoctors(true);
+    try {
+      const response = await api.get('/doctors');
+      setDoctors(response.data.data || response.data.users || []);
+    } catch (error) {
+      console.error('Error loading doctors:', error);
+      setDoctors([]);
+    } finally {
+      setLoadingDoctors(false);
+    }
+  };
+
+  // Load nurses
+  const loadNurses = async () => {
+    try {
+      const response = await api.get('/nurses');
+      setNurses(response.data.data || response.data.users || []);
+    } catch (error) {
+      console.error('Error loading nurses:', error);
+      setNurses([]);
+    }
+  };
+
+  // Search for patients
+  const searchPatients = async () => {
+    if (!patientSearch.trim()) return;
+    
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await api.get(`/patients/search?q=${patientSearch}`);
+      setSearchResults(response.data.patients || response.data.data || []);
+    } catch (error) {
+      console.error('Error searching patients:', error);
+      setError('Failed to search patients. Please try again.');
+      setSearchResults([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Select patient and load data
+  const handlePatientSelect = async (patient) => {
+    setSelectedPatient(patient);
+    setSearchResults([]);
+    setPatientSearch('');
+    setAdmissionData(prev => ({ 
+      ...prev, 
+      patient: patient._id || patient.id,
+      emergencyContact: {
+        name: patient.emergencyContact?.name || '',
+        phone: patient.emergencyContact?.phone || '',
+        relationship: patient.emergencyContact?.relationship || '',
+        email: patient.emergencyContact?.email || ''
+      },
+      insurance: {
+        provider: patient.insurance?.provider || '',
+        policyNumber: patient.insurance?.membershipNumber || '',
+        approvalNumber: ''
+      }
+    }));
+    await loadInpatientRecords(patient._id || patient.id);
+  };
+
+  // Load wards
+  const loadWards = async () => {
+    setLoadingWards(true);
+    try {
+      const response = await api.get('/wards?status=active');
+      setWards(response.data.data || []);
+    } catch (error) {
+      console.error('Error loading wards:', error);
+      setWards([]);
+    } finally {
+      setLoadingWards(false);
+    }
+  };
+
+  // Load beds when ward is selected
+  const loadBedsInWard = async (wardId) => {
+    if (!wardId) return;
+    
+    setLoadingBeds(true);
+    try {
+      const response = await api.get(`/beds/available/${wardId}`);
+      setAvailableBeds(response.data.data || []);
+    } catch (error) {
+      console.error('Error loading beds:', error);
+      setAvailableBeds([]);
+    } finally {
+      setLoadingBeds(false);
+    }
+  };
+
+  // Handle ward selection
+  const handleWardChange = (wardId) => {
+    setAdmissionData(prev => ({ ...prev, ward: wardId, bed: '' }));
+    loadBedsInWard(wardId);
+  };
+
+  // Load patient inpatient records
+  const loadInpatientRecords = async (patientId) => {
+    setLoadingRecords(true);
+    try {
+      const response = await api.get(`/ipd-records?patient=${patientId}`);
+      setInpatientRecords(response.data.data || []);
+    } catch (error) {
+      console.error('Error loading inpatient records:', error);
+      setInpatientRecords([]);
+    } finally {
+      setLoadingRecords(false);
+    }
+  };
+
+  // Handle admission submission
+  const handleSubmitAdmission = async (e) => {
+    e.preventDefault();
+    
+    if (!selectedPatient || !admissionData.ward || !admissionData.bed || !admissionData.admissionReason) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    if (!admissionData.admittingDoctor) {
+      setError('Please select an admitting doctor');
+      return;
+    }
+
+    if (!admissionData.emergencyContact.name || !admissionData.emergencyContact.phone) {
+      setError('Emergency contact information is required');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+    
+    try {
+      const admissionPayload = {
+        patient: admissionData.patient,
+        ward: admissionData.ward,
+        bed: admissionData.bed,
+        admissionDate: admissionData.admissionDate,
+        admissionReason: admissionData.admissionReason,
+        admittingDoctor: admissionData.admittingDoctor,
+        admissionType: admissionData.admissionType,
+        emergencyContact: admissionData.emergencyContact,
+        expectedDischargeDate: admissionData.expectedDischargeDate || undefined,
+        status: admissionData.status,
+        notes: admissionData.notes
+      };
+
+      // Add optional fields if present      
+      if (admissionData.assignedNurse) {
+        admissionPayload.assignedNurse = admissionData.assignedNurse;
+      }
+
+      // Only add insurance if provider is set
+      if (admissionData.insurance.provider) {
+        admissionPayload.insurance = admissionData.insurance;
+      }
+
+      const response = await api.post('/ipd-records', admissionPayload);
+      
+      if (response.status === 201) {
+        setSuccess(`Patient admitted successfully! Admission Number: ${response.data.data.admissionNumber}`);
+        
+        // Reset form
+        setAdmissionData({
+          patient: '',
+          ward: '',
+          bed: '',
+          admissionDate: new Date().toISOString().slice(0, 16),
+          admissionReason: '',
+          admittingDoctor: '',
+          attendingPhysician: '',
+          assignedNurse: '',
+          admissionType: 'elective',
+          emergencyContact: {
+            name: '',
+            phone: '',
+            relationship: '',
+            email: ''
+          },
+          insurance: {
+            provider: '',
+            policyNumber: '',
+            approvalNumber: ''
+          },
+          expectedDischargeDate: '',
+          status: 'admitted',
+          notes: ''
+        });
+        
+        // Clear selection and reload data
+        setSelectedPatient(null);
+        setAvailableBeds([]);
+        await loadWards();
+        
+        // Clear success message after 5 seconds
+        setTimeout(() => setSuccess(null), 5000);
+      }
+    } catch (error) {
+      console.error('Error admitting patient:', error);
+      console.error('Error response:', error.response?.data);
+      const errorMessage = error.response?.data?.message || 'Failed to admit patient. Please try again.';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Format date
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('en-TZ', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  // Format datetime
+  const formatDateTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleString('en-TZ', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Get status color
+  const getStatusColor = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'admitted':
+      case 'under_observation':
+        return 'bg-blue-100 text-blue-800';
+      case 'stable':
+        return 'bg-green-100 text-green-800';
+      case 'critical':
+        return 'bg-red-100 text-red-800';
+      case 'discharged':
+        return 'bg-gray-100 text-gray-800';
+      case 'transferred':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'deceased':
+        return 'bg-red-100 text-red-900';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  return (
+    <div className="bg-gray-50 min-h-screen p-4 sm:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="bg-blue-500 p-3 rounded-lg mr-4">
+                <BedDouble className="text-white" size={28} />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-800">Inpatient Department (IPD)</h1>
+                <p className="text-gray-600">Manage patient admissions and ward assignments</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                loadWards();
+                loadDoctors();
+                loadNurses();
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+            >
+              <RefreshCw size={16} />
+              Refresh
+            </button>
+          </div>
+        </div>
+
+        {/* Error and Success Messages */}
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 flex items-center justify-between">
+            <div className="flex items-center">
+              <AlertCircle className="mr-2" size={20} />
+              <div>
+                <strong>Error:</strong> {error}
+              </div>
+            </div>
+            <button onClick={() => setError(null)}>
+              <XCircle size={20} />
+            </button>
+          </div>
+        )}
+
+        {success && (
+          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4 flex items-center justify-between">
+            <div className="flex items-center">
+              <CheckCircle className="mr-2" size={20} />
+              <div>
+                <strong>Success:</strong> {success}
+              </div>
+            </div>
+            <button onClick={() => setSuccess(null)}>
+              <XCircle size={20} />
+            </button>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Patient Search Section */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+              <Search className="mr-2 text-blue-500" size={20} />
+              Search Patient
+            </h3>
+            
+            {/* Search Input */}
+            <div className="mb-4">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={patientSearch}
+                  onChange={(e) => setPatientSearch(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && searchPatients()}
+                  placeholder="Search by name, email, or phone"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+              </div>
+              <button
+                onClick={searchPatients}
+                disabled={loading || !patientSearch.trim()}
+                className="mt-2 w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Searching...' : 'Search Patient'}
+              </button>
+            </div>
+
+            {/* Search Results */}
+            {searchResults.length > 0 && (
+              <div className="space-y-2 mb-4">
+                <h4 className="font-medium text-gray-700">Search Results:</h4>
+                <div className="max-h-60 overflow-y-auto space-y-2">
+                  {searchResults.map((patient) => (
+                    <div
+                      key={patient._id || patient.id}
+                      onClick={() => handlePatientSelect(patient)}
+                      className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition"
+                    >
+                      <div className="flex items-center">
+                        <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                          <User className="h-4 w-4 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {patient.fullName || `${patient.firstName} ${patient.lastName}`}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            ID: {patient.patientId || 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Selected Patient Display */}
+            {selectedPatient && (
+              <div className="border-t pt-4">
+                <h4 className="font-medium text-gray-700 mb-3">Selected Patient:</h4>
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center">
+                      <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                        <User className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {selectedPatient.fullName || `${selectedPatient.firstName} ${selectedPatient.lastName}`}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          ID: {selectedPatient.patientId || 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedPatient(null);
+                        setAdmissionData(prev => ({ 
+                          ...prev, 
+                          patient: '',
+                          emergencyContact: { name: '', phone: '', relationship: '', email: '' },
+                          insurance: { provider: '', policyNumber: '', approvalNumber: '' }
+                        }));
+                      }}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <XCircle size={20} />
+                    </button>
+                  </div>
+                  <div className="text-sm text-gray-600 space-y-1">
+                    <p>Age: {selectedPatient.age || 'N/A'}</p>
+                    <p>Gender: {selectedPatient.gender || 'N/A'}</p>
+                    {selectedPatient.bloodType && <p>Blood Type: {selectedPatient.bloodType}</p>}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Wards Section */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+              <MapPin className="mr-2 text-blue-500" size={20} />
+              Available Wards
+            </h3>
+
+            {loadingWards ? (
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                <span className="ml-2 text-gray-500">Loading wards...</span>
+              </div>
+            ) : wards.length === 0 ? (
+              <div className="text-center py-4 text-gray-500">
+                <BedDouble className="mx-auto h-8 w-8 mb-2" />
+                <p>No wards found.</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {wards.map((ward) => (
+                  <div
+                    key={ward._id}
+                    className={`p-3 border rounded-lg cursor-pointer transition ${
+                      admissionData.ward === ward._id 
+                        ? 'border-blue-500 bg-blue-50' 
+                        : 'border-gray-200 hover:bg-gray-50'
+                    }`}
+                    onClick={() => handleWardChange(ward._id)}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-medium text-gray-900">{ward.name}</p>
+                        <p className="text-sm text-gray-500">{ward.wardNumber}</p>
+                        <p className="text-xs text-gray-400">
+                          Floor: {ward.floor} | Type: {ward.type}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          Available: {ward.availableBeds}/{ward.capacity} beds
+                        </p>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        ward.availableBeds > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      }`}>
+                        {ward.availableBeds > 0 ? 'Available' : 'Full'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Patient Records Section */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+              <Activity className="mr-2 text-blue-500" size={20} />
+              Patient IPD History
+            </h3>
+
+            {!selectedPatient ? (
+              <div className="text-center py-8">
+                <Activity className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                <p className="text-gray-500">Select a patient to view IPD history</p>
+              </div>
+            ) : (
+              <div>
+                {loadingRecords ? (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                    <span className="ml-2 text-gray-500">Loading records...</span>
+                  </div>
+                ) : inpatientRecords.length === 0 ? (
+                  <div className="text-center py-4 text-gray-500">
+                    <FileText className="mx-auto h-8 w-8 mb-2" />
+                    <p>No inpatient records found.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {inpatientRecords.map((record) => (
+                      <div
+                        key={record._id}
+                        className="p-3 border border-gray-200 rounded-lg"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-start">
+                            <p className="font-medium text-gray-900">
+                              {record.admissionNumber}
+                            </p>
+                            <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(record.status)}`}>
+                              {record.status}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600">
+                            Ward: {record.ward?.name || 'N/A'} - Bed: {record.bed?.bedNumber || 'N/A'}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Admitted: {formatDateTime(record.admissionDate)}
+                          </p>
+                          {record.dischargeDate && (
+                            <p className="text-xs text-gray-500">
+                              Discharged: {formatDateTime(record.dischargeDate)}
+                            </p>
+                          )}
+                          <p className="text-xs text-gray-500">
+                            Length of Stay: {record.lengthOfStay} days
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Admit Patient Form */}
+        {selectedPatient && (
+          <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+              <Plus className="mr-2 text-blue-500" size={20} />
+              Admit Patient
+            </h3>
+
+            <form onSubmit={handleSubmitAdmission}>
+              {/* Basic Admission Info */}
+              <div className="mb-6">
+                <h4 className="font-medium text-gray-700 mb-3">Admission Details</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Ward *
+                    </label>
+                    <select
+                      value={admissionData.ward}
+                      onChange={(e) => handleWardChange(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    >
+                      <option value="">Select Ward</option>
+                      {wards.map((ward) => (
+                        <option 
+                          key={ward._id} 
+                          value={ward._id}
+                          disabled={ward.availableBeds === 0}
+                        >
+                          {ward.name} ({ward.availableBeds} available)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Bed *
+                    </label>
+                    <select
+                      value={admissionData.bed}
+                      onChange={(e) => setAdmissionData(prev => ({ ...prev, bed: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                      disabled={!admissionData.ward || loadingBeds}
+                    >
+                      <option value="">Select Bed</option>
+                      {availableBeds.map((bed) => (
+                        <option key={bed._id} value={bed._id}>
+                          {bed.bedNumber} ({bed.type})
+                        </option>
+                      ))}
+                    </select>
+                    {loadingBeds && (
+                      <p className="text-xs text-gray-500 mt-1">Loading beds...</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Admission Date & Time *
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={admissionData.admissionDate}
+                      onChange={(e) => setAdmissionData(prev => ({ ...prev, admissionDate: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Admission Type *
+                    </label>
+                    <select
+                      value={admissionData.admissionType}
+                      onChange={(e) => setAdmissionData(prev => ({ ...prev, admissionType: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    >
+                      <option value="elective">Elective</option>
+                      <option value="emergency">Emergency</option>
+                      <option value="transfer">Transfer</option>
+                      <option value="observation">Observation</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Admitting Doctor *
+                    </label>
+                    <select
+                      value={admissionData.admittingDoctor}
+                      onChange={(e) => setAdmissionData(prev => ({ ...prev, admittingDoctor: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    >
+                      <option value="">Select Doctor</option>
+                      {loadingDoctors ? (
+                        <option disabled>Loading doctors...</option>
+                      ) : (
+                        doctors.map((doc) => (
+                          <option key={doc._id} value={doc._id}>
+                            {doc.fullName || `${doc.firstName} ${doc.lastName}`}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Assigned Nurse (Optional)
+                      </label>
+                      <select
+                        value={admissionData.assignedNurse}
+                        onChange={(e) => setAdmissionData(prev => ({ ...prev, assignedNurse: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Select Nurse</option>
+                        {nurses.length === 0 ? (
+                          <option disabled>No nurses found</option>
+                        ) : (
+                          nurses.map((nurse) => (
+                            <option key={nurse._id} value={nurse._id}>
+                              {nurse.fullName || `${nurse.firstName} ${nurse.lastName}`}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Expected Discharge Date (Optional)
+                      </label>
+                      <input
+                        type="date"
+                        value={admissionData.expectedDischargeDate}
+                        onChange={(e) => setAdmissionData(prev => ({ ...prev, expectedDischargeDate: e.target.value }))}
+                        min={new Date().toISOString().split('T')[0]}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2 lg:col-span-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Admission Reason *
+                      </label>
+                      <textarea
+                        value={admissionData.admissionReason}
+                        onChange={(e) => setAdmissionData(prev => ({ ...prev, admissionReason: e.target.value }))}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Reason for admission..."
+                        required
+                      ></textarea>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Emergency Contact */}
+                <div className="mb-6 border-t pt-6">
+                  <h4 className="font-medium text-gray-700 mb-3">Emergency Contact</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Contact Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={admissionData.emergencyContact.name}
+                        onChange={(e) => setAdmissionData(prev => ({ ...prev, emergencyContact: { ...prev.emergencyContact, name: e.target.value } }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Contact Phone *
+                      </label>
+                      <input
+                        type="text"
+                        value={admissionData.emergencyContact.phone}
+                        onChange={(e) => setAdmissionData(prev => ({ ...prev, emergencyContact: { ...prev.emergencyContact, phone: e.target.value } }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Relationship
+                      </label>
+                      <input
+                        type="text"
+                        value={admissionData.emergencyContact.relationship}
+                        onChange={(e) => setAdmissionData(prev => ({ ...prev, emergencyContact: { ...prev.emergencyContact, relationship: e.target.value } }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Contact Email
+                      </label>
+                      <input
+                        type="email"
+                        value={admissionData.emergencyContact.email}
+                        onChange={(e) => setAdmissionData(prev => ({ ...prev, emergencyContact: { ...prev.emergencyContact, email: e.target.value } }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+              </div>
+
+                {/* Notes */}
+                <div className="mb-6 border-t pt-6">
+                  <h4 className="font-medium text-gray-700 mb-3">Admission Notes (Optional)</h4>
+                  <div>
+                    <textarea
+                      value={admissionData.notes}
+                      onChange={(e) => setAdmissionData(prev => ({ ...prev, notes: e.target.value }))}
+                      rows={4}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Add any relevant admission notes..."
+                    ></textarea>
+                  </div>
+                </div>
+
+                {/* Submit Button */}
+                <div className="border-t pt-6 text-right">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                        Admitting...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="mr-2" size={20} />
+                        Admit Patient
+                      </>
+                    )}
+                  </button>
+                </div>
+            </form>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default IPD;

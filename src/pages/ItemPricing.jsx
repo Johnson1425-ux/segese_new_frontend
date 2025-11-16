@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { Plus } from 'lucide-react';
+import { Plus, Edit, Trash2, Upload, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import api from "../utils/api.js";
+import toast from "react-hot-toast";
 
 const CATEGORIES = [
   "BRITAM",
@@ -21,34 +23,195 @@ const DISPLAY = {
 };
 
 export default function ItemPricing() {
-  const [items, setItems] = useState([]);
+  const [medicines, setMedicines] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const [form, setForm] = useState({});
   const [editId, setEditId] = useState(null);
-  const [alert, setAlert] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [uploadData, setUploadData] = useState([]);
+  const [uploading, setUploading] = useState(false);
 
-  const fetchItems = async () => {
+  const fetchMedicines = async () => {
     try {
-      const response = await api.get("/item-pricing");
-      setItems(response.data.data);
+      const response = await api.get("/stock");
+      setMedicines(response.data.data);
     } catch (error) {
-      console.error("Failed to fetch items", error);
-      setTempAlert("Failed to load item prices.");
+      toast.error("Failed to load medicines.");
     }
   };
 
   useEffect(() => {
-    fetchItems();
+    fetchMedicines();
   }, []);
 
-  const setTempAlert = (msg, ms = 3000) => {
-    setAlert(msg);
-    setTimeout(() => setAlert(null), ms);
+  // Download template Excel file
+  const downloadTemplate = () => {
+    const templateData = [
+      {
+        'Medicine Name': 'Example Medicine',
+        'Generic Name': 'Generic Example',
+        'Type': 'Tablet',
+        'Strength': '500mg',
+        'Category': 'Analgesic',
+        'Manufacturer': 'Example Pharma',
+        'Base Selling Price': 5000,
+        'Reorder Level': 10,
+        'BRITAM': 4500,
+        'NSSF': 4500,
+        'NHIF': 4500,
+        'ASSEMBLE': 4500,
+        'Pharmacy': 5000,
+        'Hospital Shop': 5000,
+      }
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Medicine Pricing Template");
+    XLSX.writeFile(wb, "medicine_pricing_template.xlsx");
+    toast.success("Template downloaded!");
+  };
+
+  // Download current medicines as Excel
+  const downloadCurrentData = () => {
+    if (medicines.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+
+    const exportData = medicines.map(item => ({
+      'Medicine Name': item.name,
+      'Generic Name': item.genericName || '',
+      'Type': item.type,
+      'Strength': item.strength || '',
+      'Category': item.category || '',
+      'Manufacturer': item.manufacturer || '',
+      'Base Selling Price': item.sellingPrice || 0,
+      'Reorder Level': item.reorderLevel || 10,
+      'BRITAM': item.prices?.BRITAM || 0,
+      'NSSF': item.prices?.NSSF || 0,
+      'NHIF': item.prices?.NHIF || 0,
+      'ASSEMBLE': item.prices?.ASSEMBLE || 0,
+      'Pharmacy': item.prices?.Pharmacy || 0,
+      'Hospital Shop': item.prices?.HospitalShop || 0,
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Current Medicines");
+    XLSX.writeFile(wb, `medicines_export_${new Date().toISOString().split('T')[0]}.xlsx`);
+    toast.success("Data exported!");
+  };
+
+  // Handle Excel file upload
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws);
+
+        // Validate and transform data
+        const transformedData = data.map((row, index) => {
+          if (!row['Medicine Name'] || !row['Type'] || !row['Base Selling Price']) {
+            throw new Error(`Row ${index + 2}: Medicine Name, Type, and Base Selling Price are required`);
+          }
+
+          return {
+            name: String(row['Medicine Name']).trim(),
+            genericName: row['Generic Name'] ? String(row['Generic Name']).trim() : '',
+            type: String(row['Type']).trim(),
+            strength: row['Strength'] ? String(row['Strength']).trim() : '',
+            category: row['Category'] ? String(row['Category']).trim() : 'Other',
+            manufacturer: row['Manufacturer'] ? String(row['Manufacturer']).trim() : '',
+            sellingPrice: parseFloat(row['Base Selling Price']) || 0,
+            reorderLevel: parseInt(row['Reorder Level']) || 10,
+            prices: {
+              BRITAM: parseFloat(row['BRITAM']) || 0,
+              NSSF: parseFloat(row['NSSF']) || 0,
+              NHIF: parseFloat(row['NHIF']) || 0,
+              ASSEMBLE: parseFloat(row['ASSEMBLE']) || 0,
+              Pharmacy: parseFloat(row['Pharmacy']) || 0,
+              HospitalShop: parseFloat(row['Hospital Shop']) || 0,
+            }
+          };
+        });
+
+        setUploadData(transformedData);
+        setShowUploadModal(true);
+        toast.success(`${transformedData.length} items loaded. Review before importing.`);
+      } catch (error) {
+        toast.error(error.message || "Failed to parse Excel file");
+        console.error(error);
+      }
+    };
+    reader.readAsBinaryString(file);
+    e.target.value = ''; // Reset input
+  };
+
+  // Import validated data
+  const handleImport = async () => {
+    if (uploadData.length === 0) {
+      toast.error("No data to import");
+      return;
+    }
+
+    setUploading(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const item of uploadData) {
+      try {
+        // Check if medicine already exists
+        const existing = medicines.find(m => 
+          m.name.toLowerCase() === item.name.toLowerCase() &&
+          m.type.toLowerCase() === item.type.toLowerCase()
+        );
+
+        if (existing) {
+          // Update existing medicine
+          await api.put(`/stock/${existing._id}`, item);
+        } else {
+          // Create new medicine
+          await api.post("/stock", item);
+        }
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to import ${item.name}:`, error);
+        errorCount++;
+      }
+    }
+
+    setUploading(false);
+    setShowUploadModal(false);
+    setUploadData([]);
+
+    if (successCount > 0) {
+      toast.success(`Successfully imported ${successCount} items`);
+      fetchMedicines();
+    }
+    if (errorCount > 0) {
+      toast.error(`Failed to import ${errorCount} items`);
+    }
   };
 
   const openAddModal = () => {
     setForm({
       name: "",
+      genericName: "",
+      type: "",
+      strength: "",
+      category: "",
+      manufacturer: "",
+      sellingPrice: "",
+      reorderLevel: 10,
       prices: CATEGORIES.reduce((acc, cat) => ({ ...acc, [cat]: "" }), {}),
     });
     setEditId(null);
@@ -56,7 +219,17 @@ export default function ItemPricing() {
   };
 
   const openEditModal = (item) => {
-    setForm({ name: item.name, ...item.prices });
+    setForm({
+      name: item.name,
+      genericName: item.genericName || "",
+      type: item.type,
+      strength: item.strength || "",
+      category: item.category || "",
+      manufacturer: item.manufacturer || "",
+      sellingPrice: item.sellingPrice || "",
+      reorderLevel: item.reorderLevel || 10,
+      prices: item.prices || CATEGORIES.reduce((acc, cat) => ({ ...acc, [cat]: "" }), {}),
+    });
     setEditId(item._id);
     setShowModal(true);
   };
@@ -66,184 +239,433 @@ export default function ItemPricing() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handlePriceChange = (category, value) => {
+    setForm((prev) => ({
+      ...prev,
+      prices: {
+        ...prev.prices,
+        [category]: value
+      }
+    }));
+  };
+
   const handleSave = async () => {
     if (!form.name || form.name.trim() === "") {
-      setTempAlert("Medicine name is required");
+      toast.error("Medicine name is required");
+      return;
+    }
+
+    if (!form.type) {
+      toast.error("Medicine type is required");
+      return;
+    }
+
+    if (!form.sellingPrice || parseFloat(form.sellingPrice) <= 0) {
+      toast.error("Valid selling price is required");
       return;
     }
 
     const priceData = CATEGORIES.reduce((acc, cat) => {
-      const val = parseFloat(form[cat]);
+      const val = parseFloat(form.prices[cat]);
       acc[cat] = Number.isFinite(val) ? val : 0;
       return acc;
     }, {});
 
-    const newItem = {
+    const medicineData = {
       name: form.name.trim(),
+      genericName: form.genericName?.trim(),
+      type: form.type,
+      strength: form.strength?.trim(),
+      category: form.category || 'Other',
+      manufacturer: form.manufacturer?.trim(),
+      sellingPrice: parseFloat(form.sellingPrice),
+      reorderLevel: parseInt(form.reorderLevel) || 10,
       prices: priceData,
     };
 
     try {
+      setLoading(true);
       if (editId) {
-        await api.put(`/item-pricing/${editId}`, newItem);
-        setTempAlert("Item updated successfully");
+        await api.put(`/medicines/${editId}`, medicineData);
+        toast.success("Medicine updated successfully");
       } else {
-        await api.post("/item-pricing", newItem);
-        setTempAlert("Item price added successfully");
+        await api.post("/medicines", medicineData);
+        toast.success("Medicine added successfully");
       }
-      fetchItems();
+      fetchMedicines();
+      setShowModal(false);
+      setEditId(null);
     } catch (error) {
-      setTempAlert("Failed to save item.");
+      toast.error(error.response?.data?.message || "Failed to save medicine.");
       console.error(error);
+    } finally {
+      setLoading(false);
     }
-
-    setShowModal(false);
-    setEditId(null);
   };
 
   const handleDelete = async (id, name) => {
-    if (window.confirm(`Delete ${name}?`)) {
+    if (window.confirm(`Delete ${name}? This will fail if there are existing batches.`)) {
       try {
-        await api.delete(`/item-pricing/${id}`);
-        setTempAlert(`${name} deleted`);
-        fetchItems();
+        await api.delete(`/medicines/${id}`);
+        toast.success(`${name} deleted`);
+        fetchMedicines();
       } catch (error) {
-        setTempAlert("Failed to delete item.");
+        toast.error(error.response?.data?.message || "Failed to delete medicine.");
         console.error(error);
       }
     }
   };
 
   return (
-    <div>
-      {/* Actions */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Item Pricing</h1>
-        <button
-          onClick={openAddModal}
-          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Item Price
-        </button>
-      </div>
-
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow-md p-6 overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 ">Medicine</th>
-              {CATEGORIES.map((cat) => (
-                <th key={cat} className="px-6 py-3 text-right text-xs font-medium text-gray-500">
-                  {DISPLAY[cat]}
-                </th>
-              ))}
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500">Actions</th>
-            </tr>
-          </thead>
-
-          <tbody className="bg-white divide-y divide-gray-200">
-            {items.length === 0 && (
-              <tr>
-                <td
-                  colSpan={1 + CATEGORIES.length + 1}
-                  className="p-4 text-center text-gray-500"
-                >
-                  No items yet
-                </td>
-              </tr>
-            )}
-
-            {items.map((item) => (
-              <tr key={item._id} className="border-b hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">{item.name}</td>
-                {CATEGORIES.map((cat) => (
-                  <td key={cat} className="px-6 py-4 whitespace-nowrap text-right">
-                    {Number.isFinite(item.prices?.[cat])
-                      ? item.prices[cat]
-                      : 0}
-                  </td>
-                ))}
-                <td className="p-3 text-center">
-                  <button
-                    onClick={() => openEditModal(item)}
-                    className="px-3 py-1 bg-blue-600 text-white rounded-lg mr-2 hover:bg-blue-700"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(item._id, item.name)}
-                    className="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Add/Edit Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-xl shadow-lg p-6 w-[640px] max-w-full">
-            <h2 className="text-xl font-bold mb-4">
-              {editId ? "Edit Item Price" : "Add Item Price"}
-            </h2>
-
-            <div className="space-y-3">
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800">Medicine Pricing</h1>
+            <p className="text-gray-600 mt-1">Manage medicine catalog and insurance prices</p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={downloadTemplate}
+              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Download Template
+            </button>
+            <button
+              onClick={downloadCurrentData}
+              className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export Data
+            </button>
+            <label className="flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors cursor-pointer">
+              <Upload className="w-4 h-4 mr-2" />
+              Upload Excel
               <input
-                name="name"
-                value={form.name || ""}
-                onChange={handleChange}
-                placeholder="Medicine name"
-                className="w-full border rounded-lg p-2"
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileUpload}
+                className="hidden"
               />
-
-              {CATEGORIES.map((cat) => (
-                <div key={cat} className="flex items-center gap-2">
-                  <label className="w-40 text-sm text-gray-700">
-                    {DISPLAY[cat]}
-                  </label>
-                  <input
-                    type="number"
-                    name={cat}
-                    value={form[cat] || ""}
-                    onChange={handleChange}
-                    placeholder="0"
-                    className="flex-1 border rounded-lg p-2"
-                    min="0"
-                  />
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                onClick={() => setShowModal(false)}
-                className="px-4 py-2 border rounded-lg"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:blue-700"
-              >
-                Save
-              </button>
-            </div>
+            </label>
+            <button
+              onClick={openAddModal}
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Medicine
+            </button>
           </div>
         </div>
-      )}
 
-      {/* Alert */}
-      {alert && (
-        <div className="fixed bottom-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg">
-          {alert}
+        <div className="bg-white rounded-xl shadow-md p-6 overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Medicine</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Base Price</th>
+                {CATEGORIES.map((cat) => (
+                  <th key={cat} className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                    {DISPLAY[cat]}
+                  </th>
+                ))}
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
+              </tr>
+            </thead>
+
+            <tbody className="bg-white divide-y divide-gray-200">
+              {medicines.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={3 + CATEGORIES.length + 1}
+                    className="p-4 text-center text-gray-500"
+                  >
+                    No medicines yet. Add your first medicine to get started.
+                  </td>
+                </tr>
+              )}
+
+              {medicines.map((item) => (
+                <tr key={item._id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4">
+                    <div className="text-sm font-medium text-gray-900">{item.name}</div>
+                    {item.strength && (
+                      <div className="text-xs text-gray-500">{item.strength}</div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-600">{item.type}</td>
+                  <td className="px-6 py-4 text-right text-sm font-medium text-gray-900">
+                    {item.sellingPrice?.toLocaleString()}
+                  </td>
+                  {CATEGORIES.map((cat) => (
+                    <td key={cat} className="px-6 py-4 text-right text-sm text-gray-600">
+                      {Number.isFinite(item.prices?.[cat])
+                        ? item.prices[cat].toLocaleString()
+                        : '-'}
+                    </td>
+                  ))}
+                  <td className="px-6 py-4 text-center">
+                    <button
+                      onClick={() => openEditModal(item)}
+                      className="inline-flex items-center px-3 py-1 bg-blue-600 text-white text-sm rounded-lg mr-2 hover:bg-blue-700"
+                    >
+                      <Edit size={14} className="mr-1" />
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(item._id, item.name)}
+                      className="inline-flex items-center px-3 py-1 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700"
+                    >
+                      <Trash2 size={14} className="mr-1" />
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      )}
+
+        {/* Upload Preview Modal */}
+        {showUploadModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+              <h2 className="text-xl font-bold mb-4">Review Import Data</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                {uploadData.length} items ready to import. Existing medicines will be updated.
+              </p>
+
+              <div className="overflow-x-auto mb-4 max-h-96">
+                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Medicine</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Type</th>
+                      <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Base Price</th>
+                      <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">BRITAM</th>
+                      <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">NHIF</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {uploadData.map((item, idx) => (
+                      <tr key={idx}>
+                        <td className="px-3 py-2">{item.name}</td>
+                        <td className="px-3 py-2">{item.type}</td>
+                        <td className="px-3 py-2 text-right">{item.sellingPrice}</td>
+                        <td className="px-3 py-2 text-right">{item.prices.BRITAM}</td>
+                        <td className="px-3 py-2 text-right">{item.prices.NHIF}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setShowUploadModal(false);
+                    setUploadData([]);
+                  }}
+                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                  disabled={uploading}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleImport}
+                  disabled={uploading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {uploading ? 'Importing...' : `Import ${uploadData.length} Items`}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add/Edit Modal */}
+        {showModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+              <h2 className="text-xl font-bold mb-4">
+                {editId ? "Edit Medicine" : "Add Medicine"}
+              </h2>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Medicine Name *
+                    </label>
+                    <input
+                      name="name"
+                      value={form.name || ""}
+                      onChange={handleChange}
+                      placeholder="e.g., Paracetamol"
+                      className="w-full border rounded-lg p-2"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Generic Name
+                    </label>
+                    <input
+                      name="genericName"
+                      value={form.genericName || ""}
+                      onChange={handleChange}
+                      placeholder="e.g., Acetaminophen"
+                      className="w-full border rounded-lg p-2"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Type *
+                    </label>
+                    <select
+                      name="type"
+                      value={form.type || ""}
+                      onChange={handleChange}
+                      className="w-full border rounded-lg p-2"
+                    >
+                      <option value="">Select type</option>
+                      <option value="Tablet">Tablet</option>
+                      <option value="Capsule">Capsule</option>
+                      <option value="Syrup">Syrup</option>
+                      <option value="Injection">Injection</option>
+                      <option value="Cream">Cream</option>
+                      <option value="Drops">Drops</option>
+                      <option value="Inhaler">Inhaler</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Strength
+                    </label>
+                    <input
+                      name="strength"
+                      value={form.strength || ""}
+                      onChange={handleChange}
+                      placeholder="e.g., 500mg"
+                      className="w-full border rounded-lg p-2"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Category
+                    </label>
+                    <select
+                      name="category"
+                      value={form.category || ""}
+                      onChange={handleChange}
+                      className="w-full border rounded-lg p-2"
+                    >
+                      <option value="">Select category</option>
+                      <option value="Antibiotic">Antibiotic</option>
+                      <option value="Analgesic">Analgesic</option>
+                      <option value="Antiviral">Antiviral</option>
+                      <option value="Antifungal">Antifungal</option>
+                      <option value="Cardiovascular">Cardiovascular</option>
+                      <option value="Diabetic">Diabetic</option>
+                      <option value="Respiratory">Respiratory</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Manufacturer
+                    </label>
+                    <input
+                      name="manufacturer"
+                      value={form.manufacturer || ""}
+                      onChange={handleChange}
+                      placeholder="e.g., Pfizer"
+                      className="w-full border rounded-lg p-2"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Base Selling Price (TZS) *
+                    </label>
+                    <input
+                      type="number"
+                      name="sellingPrice"
+                      value={form.sellingPrice || ""}
+                      onChange={handleChange}
+                      placeholder="0"
+                      className="w-full border rounded-lg p-2"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Reorder Level
+                    </label>
+                    <input
+                      type="number"
+                      name="reorderLevel"
+                      value={form.reorderLevel || ""}
+                      onChange={handleChange}
+                      placeholder="10"
+                      className="w-full border rounded-lg p-2"
+                      min="0"
+                    />
+                  </div>
+                </div>
+
+                <div className="border-t pt-4 mt-4">
+                  <h3 className="text-lg font-semibold mb-3">Insurance Prices</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    {CATEGORIES.map((cat) => (
+                      <div key={cat}>
+                        <label className="block text-sm text-gray-700 mb-1">
+                          {DISPLAY[cat]}
+                        </label>
+                        <input
+                          type="number"
+                          value={form.prices?.[cat] || ""}
+                          onChange={(e) => handlePriceChange(cat, e.target.value)}
+                          placeholder="0"
+                          className="w-full border rounded-lg p-2"
+                          min="0"
+                          step="0.01"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                  disabled={loading}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={loading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {loading ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

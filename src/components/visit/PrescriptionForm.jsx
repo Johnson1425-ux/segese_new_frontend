@@ -1,30 +1,82 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import { useQuery, useMutation, useQueryClient } from 'react-query';
-import Select from 'react-select';
+import { useMutation, useQueryClient } from 'react-query';
+import Select from 'react-select/async';
 import { toast } from 'react-hot-toast';
-import { medicationService } from '../../utils/medicationService';
-import { visitService } from '../../utils/visitService';
+import { debounce } from 'lodash';
+import api from '../../utils/api';
 
-const PrescriptionForm = ({ visitId, existingPrescriptions }) => {
-  const { control, handleSubmit, register, reset, formState: { isSubmitting } } = useForm();
+const prescriptionService = {
+  create: (data) => api.post('/prescriptions', data)
+};
+
+const PrescriptionForm = ({ visitId, patientId, existingPrescriptions }) => {
+  const { control, handleSubmit, register, reset, formState: { isSubmitting } } = useForm({
+    defaultValues: {
+      medication: null,
+      dosage: '',
+      frequency: '',
+      duration: '',
+      notes: ''
+    }
+  });
   const queryClient = useQueryClient();
 
-  const { data: medicationsData, isLoading: isLoadingMeds } = useQuery('medications', medicationService.getAll);
-  const medOptions = medicationsData?.data?.map(m => ({ value: m.name, label: `${m.name} (${m.strength})` })) || [];
+  const loadOptions = async (inputValue, callback) => {
+    if (inputValue.length < 2) {
+      callback([]);
+      return;
+    }
+    try {
+      const { data } = await api.get(`/medications/search?name=${inputValue}`);
+      const options = data.data.map(medication => ({
+        value: medication.name,
+        label: `${medication.name} - $${medication.price}`,
+        price: medication.price
+      }));
+      callback(options);
+    } catch (error) {
+      console.error("Error searching medications:", error);
+      callback([]);
+    }
+  };
 
-  const mutation = useMutation(visitService.addPrescription, {
+  const debouncedLoadOptions = useCallback(debounce(loadOptions, 400), []);
+
+  const mutation = useMutation(prescriptionService.create, {
     onSuccess: () => {
-      toast.success('Prescription added!');
+      toast.success('Prescription added successfully!');
       queryClient.invalidateQueries(['visit', visitId]);
       reset();
     },
-    onError: (error) => toast.error(error.response?.data?.message || 'Failed to add prescription.'),
+    onError: (error) => {
+      const errorMessage = error.response?.data?.message || 'Failed to add prescription.';
+      toast.error(errorMessage);
+    },
   });
 
   const onSubmit = (data) => {
-    const prescriptionData = { ...data, medication: data.medication.value };
-    mutation.mutate({ visitId, prescriptionData });
+    // Validate that medication is selected
+    if (!data.medication || !data.medication.value) {
+      toast.error('Please select a medication');
+      return;
+    }
+
+    // Prepare the prescription data
+    const prescriptionData = {
+      medication: data.medication.value,
+      dosage: data.dosage,
+      frequency: data.frequency,
+      duration: data.duration,
+      notes: data.notes
+    };
+
+    // Send to backend
+    mutation.mutate({ 
+      visitId, 
+      patient: patientId, 
+      prescriptionData 
+    });
   };
 
   return (
@@ -33,35 +85,108 @@ const PrescriptionForm = ({ visitId, existingPrescriptions }) => {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mb-6 p-4 border rounded-lg">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="label-field">Medication</label>
-            <Controller name="medication" control={control} render={({ field }) => (
-              <Select {...field} options={medOptions} isLoading={isLoadingMeds} isClearable />
-            )} />
+            <label className="label-field">Medication *</label>
+            <Controller
+              name="medication"
+              control={control}
+              rules={{ required: 'Medication is required' }}
+              render={({ field }) => (
+                <Select
+                  {...field}
+                  loadOptions={debouncedLoadOptions}
+                  isClearable
+                  placeholder="Type to search medications..."
+                  noOptionsMessage={({ inputValue }) => 
+                    inputValue.length < 2 
+                      ? "Please enter 2 or more characters" 
+                      : "No medications found"
+                  }
+                  styles={{
+                    control: (base) => ({
+                      ...base,
+                      minHeight: '38px',
+                      borderColor: '#d1d5db',
+                    })
+                  }}
+                />
+             )}
+            /> 
           </div>
           <div>
-            <label className="label-field">Dosage (e.g., 1 tablet)</label>
-            <input {...register('dosage')} className="input-field" />
+            <label className="label-field">Dosage (e.g., 1 tablet) *</label>
+            <input 
+              {...register('dosage', { required: true })} 
+              className="input-field" 
+              placeholder="e.g., 500mg"
+            />
           </div>
           <div>
-            <label className="label-field">Frequency (e.g., Twice a day)</label>
-            <input {...register('frequency')} className="input-field" />
+            <label className="label-field">Frequency (e.g., Twice a day) *</label>
+            <input 
+              {...register('frequency', { required: true })} 
+              className="input-field" 
+              placeholder="e.g., Twice daily"
+            />
           </div>
-           <div>
+          <div>
             <label className="label-field">Duration (e.g., 7 days)</label>
-            <input {...register('duration')} className="input-field" />
+            <input 
+              {...register('duration')} 
+              className="input-field" 
+              placeholder="e.g., 7 days"
+            />
           </div>
+        </div>
+        <div>
+          <label className="label-field">Notes (Optional)</label>
+          <textarea 
+            {...register('notes')} 
+            className="input-field" 
+            rows="2"
+            placeholder="Additional instructions or notes"
+          />
         </div>
         <div className="flex justify-end">
-          <button type="submit" className="btn-primary" disabled={isSubmitting}>Add Prescription</button>
+          <button 
+            type="submit" 
+            className="btn-primary" 
+            disabled={isSubmitting || mutation.isLoading}
+          >
+            {mutation.isLoading ? 'Adding...' : 'Add Prescription'}
+          </button>
         </div>
       </form>
+
       <h4 className="font-semibold mb-2">Existing Prescriptions</h4>
-      <ul className="space-y-2">
-        {existingPrescriptions?.map(p => (
-          <li key={p._id} className="p-2 border rounded-md bg-gray-50">{p.medication} - {p.dosage}, {p.frequency}</li>
-        ))}
-        {existingPrescriptions?.length === 0 && <p className="text-gray-500">No prescriptions yet.</p>}
-      </ul>
+      {existingPrescriptions && existingPrescriptions.length > 0 ? (
+        <ul className="space-y-2">
+          {existingPrescriptions.map(p => (
+            <li key={p._id} className="p-3 border rounded-md bg-gray-50">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="font-medium">{p.medication}</p>
+                  <p className="text-sm text-gray-600">
+                    {p.dosage} • {p.frequency}
+                    {p.duration && ` • ${p.duration}`}
+                  </p>
+                  {p.notes && (
+                    <p className="text-sm text-gray-500 mt-1">{p.notes}</p>
+                  )}
+                </div>
+                {p.isActive !== undefined && (
+                  <span className={`text-xs px-2 py-1 rounded ${
+                    p.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {p.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-gray-500 text-sm">No prescriptions yet.</p>
+      )}
     </div>
   );
 };

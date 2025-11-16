@@ -3,13 +3,16 @@ import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { Plus, Search, Edit, Trash2, Eye, ToggleLeft, ToggleRight, Shield } from 'lucide-react';
+import api from '../utils/api.js';
 import { userService } from '../utils/userService';
 import LoadingSpinner from '../components/common/LoadingSpinner.jsx';
-import ConfirmationDialog from './ConfirmationDialog';
+import ConfirmationDialog from './ConfirmationDialog.jsx';
 
 const Users = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const queryClient = useQueryClient();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
 
   const { data, isLoading, error } = useQuery('users', userService.getAllUsers);
 
@@ -30,6 +33,34 @@ const Users = () => {
     user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.role.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const deleteMutation = useMutation(
+    (id) => {
+      return api.delete(`/users/${id}`);
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('users');
+        toast.success('User deleted successfully');
+        setDialogOpen(false);
+      },
+      onError: (error) => {
+        toast.error(error.response?.data?.message || 'Failed to delete user');
+        setDialogOpen(false);
+      }
+    }
+  );
+
+  const handleDeleteClick = (user) => {
+    setSelectedUser(user);
+    setDialogOpen(true);
+  }
+
+  const confirmDelete = () => {
+    if (selectedUser) {
+      deleteMutation.mutate(selectedUser._id);
+    }
+  }
 
   if (isLoading) return <LoadingSpinner />;
   if (error) return <div>Error loading users: {error.message}</div>;
@@ -60,7 +91,7 @@ const Users = () => {
         </div>
       </div>
 
-      <div className="card">
+      <div className="bg-white shadow-md rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -74,7 +105,7 @@ const Users = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredUsers.map((user) => (
-                <tr key={user._id}>
+                <tr key={user._id} className="border-b hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">{user.firstName} {user.lastName}</div>
                     <div className="text-sm text-gray-500">{user.employeeId}</div>
@@ -96,8 +127,12 @@ const Users = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
-                        <Link to={`/users/${user._id}/edit`} className="text-indigo-600 hover:text-indigo-900"><Edit className="w-4 h-4" /></Link>
-                        {/* Add delete functionality here */}
+                        <Link to={`/users/${user._id}/edit`} className="text-indigo-600 hover:text-indigo-900">
+                          <Edit className="w-4 h-4" />
+                        </Link>
+                        <button onClick={() => handleDeleteClick(user)} className="text-red-600 hover:text-red-900" >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
                     </div>
                   </td>
                 </tr>
@@ -106,6 +141,14 @@ const Users = () => {
           </table>
         </div>
       </div>
+
+      <ConfirmationDialog
+        isOpen={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        onConfirm={confirmDelete}
+        title="Delete User"
+        message="Are you sure you want to delete this user? This action cannot be undone."
+      />
     </div>
   );
 };

@@ -23,15 +23,16 @@ const initialState = {
   }
 };
 
-// Helper function to get permissions based on role
 const getPermissionsByRole = (role) => {
   const rolePermissions = {
-    admin: ['admin:all'], // Admin has all permissions
-    doctor: ['view_patients', 'edit_patients', 'create_visits', 'prescribe_medications', 'order_lab_tests'],
+    admin: ['admin:all'],
+    doctor: ['view_patients', 'view_appointments', 'edit_patients', 'create_visits', 'prescribe_medications', 'order_lab_tests'],
     nurse: ['view_patients', 'edit_vitals', 'view_visits'],
     receptionist: ['view_patients', 'view_appointments', 'create_appointments', 'edit_appointments', 'view:visits'],
-    pharmacist: ['view_prescriptions', 'dispense_medications'],
+    pharmacist: ['view_prescriptions', 'dispense_medications',],
     lab_technician: ['view_lab_tests', 'update_lab_results'],
+    radiologist: ['view_radiology_tests', 'update_radiology_results'],
+    mortuary_attendant: ['view_corpses', 'update_corpses'],
     user: [] // Regular users have no special permissions
   };
   
@@ -158,7 +159,6 @@ export const AuthProvider = ({ children }) => {
         // Set the token in axios defaults
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
-        // Verify token with backend - try /users/profile first since /auth/me might not exist
         const response = await api.get('/users/profile');
         
         dispatch({
@@ -179,7 +179,6 @@ export const AuthProvider = ({ children }) => {
     checkAuthStatus();
   }, []);
 
-  // Login function
   const login = async (email, password) => {
     try {
       dispatch({ type: 'AUTH_START' });
@@ -281,11 +280,12 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Change password
-  const changePassword = async (currentPassword, newPassword) => {
+  const changePassword = async (currentPassword, newPassword, confirmPassword = newPassword) => {
     try {
       await api.put('/auth/change-password', {
         currentPassword,
-        newPassword
+        newPassword,
+        confirmPassword
       });
       
       toast.success('Password changed successfully');
@@ -300,7 +300,7 @@ export const AuthProvider = ({ children }) => {
   // Forgot password
   const forgotPassword = async (email) => {
     try {
-      await api.post('/auth/forgotpassword', { email });
+      await api.post('/auth/forgot-password', { email });
       toast.success('Password reset email sent successfully');
       return { success: true };
     } catch (error) {
@@ -313,7 +313,7 @@ export const AuthProvider = ({ children }) => {
   // Reset password
   const resetPassword = async (token, newPassword) => {
     try {
-      const response = await api.put(`/auth/resetpassword/${token}`, {
+      const response = await api.put(`/auth/reset-password/${token}`, {
         password: newPassword
       });
       

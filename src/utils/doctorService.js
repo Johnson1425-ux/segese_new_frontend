@@ -12,7 +12,6 @@ export const doctorService = {
     return response.data;
   },
 
-  // Start a visit (change status from "In Queue" to "In-Progress")
   startVisit: async (visitId) => {
     const response = await api.patch(`/doctors/visits/${visitId}/start`);
     return response.data;

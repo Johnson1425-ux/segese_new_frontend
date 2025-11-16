@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from 'react-query';
-import { Plus, Search, Filter, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, Filter, Eye, ChevronLeft, ChevronRight, MoreVertical, Trash2, Loader2 } from 'lucide-react';
 import { visitService } from '../utils/visitService.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import LoadingSpinner from '../components/common/LoadingSpinner.jsx';
@@ -11,8 +11,33 @@ const Visits = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [isDeleting, setIsDeleting] = useState(null);
+  const [openDropdown, setOpenDropdown] = useState(null);
 
   const canCreateVisit = hasAnyRole(['admin', 'receptionist']);
+  const dropdownRef = useRef(null);
+
+  const toggleDropdown = (visitId) => {
+    setOpenDropdown(openDropdown === visitId ? null : visitId);
+  }
+
+  const handleDeleteConfirm = async () => {
+      if (!patientToDelete) return;
+  
+      try {
+        setIsDeleting(patientToDelete._id);
+        await patientService.deletePatient(patientToDelete._id);
+        setPatients(prev => prev.filter(p => p._id !== patientToDelete._id));
+        toast.success(`Patient ${patientToDelete.firstName} ${patientToDelete.lastName} deleted successfully`);
+      } catch (error) {
+        const message = error.response?.data?.message || 'Failed to delete patient';
+        toast.error(message);
+      } finally {
+        setIsDeleting(null);
+        setShowConfirmDialog(false);
+        setPatientToDelete(null);
+      }
+    };
 
   const {
     data: visitsData,
@@ -29,6 +54,114 @@ const Visits = () => {
 
   if (isLoading) return <LoadingSpinner />;
   if (isError) return <div className="text-red-500">Error loading visits.</div>;
+
+  // Actions Dropdown Component
+  const ActionsDropdown = ({ visit, isOpen, onToggle }) => {
+    const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
+    const buttonRef = useRef(null);
+    const dropdownMenuRef = useRef(null);
+
+    useEffect(() => {
+      if (isOpen && buttonRef.current) {
+        const buttonRect = buttonRef.current.getBoundingClientRect();
+        const dropdownWidth = 192; // 48 * 4 = 12rem
+        const viewportHeight = window.innerHeight;
+        const dropdownHeight = 140; // Approximate height of dropdown
+        
+        // Calculate if dropdown should appear above or below the button
+        const spaceBelow = viewportHeight - buttonRect.bottom;
+        const shouldAppearAbove = spaceBelow < dropdownHeight && buttonRect.top > dropdownHeight;
+        
+        setDropdownPosition({
+          top: shouldAppearAbove ? buttonRect.top - dropdownHeight - 4 : buttonRect.bottom + 4,
+          left: Math.max(8, buttonRect.right - dropdownWidth) // Ensure it doesn't go off-screen
+        });
+      }
+    }, [isOpen]);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+      const handleClickOutside = (event) => {
+        if (dropdownMenuRef.current && !dropdownMenuRef.current.contains(event.target) && 
+            buttonRef.current && !buttonRef.current.contains(event.target)) {
+          setOpenDropdown(null);
+        }
+      };
+
+      if (isOpen) {
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+      }
+    }, [isOpen]);
+
+    return (
+      <div className="relative">
+        <button
+          ref={buttonRef}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle(visit._id);
+          }}
+          className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors duration-200"
+          title="More actions"
+        >
+          <MoreVertical className="w-4 h-4" />
+        </button>
+        
+        {isOpen && (
+          <>
+            {/* Higher z-index backdrop */}
+            <div 
+              className="fixed inset-0 z-[9998]" 
+              onClick={() => setOpenDropdown(null)} 
+            />
+            
+            {/* Dropdown menu with very high z-index */}
+            <div 
+              ref={dropdownMenuRef}
+              className="fixed bg-white rounded-md shadow-2xl border border-gray-200 py-1 z-[9999] w-48"
+              style={{
+                top: `${dropdownPosition.top}px`,
+                left: `${dropdownPosition.left}px`,
+                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >              
+              <Link
+                to={`/visits/${visit._id}`}
+                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200 no-underline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenDropdown(null);
+                }}
+              >
+                <Eye className="w-4 h-4 mr-3 flex-shrink-0" />
+                View Details
+              </Link>
+              
+              <hr className="my-1 border-gray-200" />
+              
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteClick(patient);
+                }}
+                className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-200 cursor-pointer"
+                disabled={isDeleting === visit._id}
+              >
+                {isDeleting === visit._id ? (
+                  <Loader2 className="w-4 h-4 mr-3 animate-spin flex-shrink-0" />
+                ) : (
+                  <Trash2 className="w-4 h-4 mr-3 flex-shrink-0" />
+                )}
+                Delete Visit
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="p-6">
@@ -60,7 +193,7 @@ const Visits = () => {
             value={statusFilter}
             onChange={(e) => {
               setStatusFilter(e.target.value);
-              setCurrentPage(1); // Reset to first page on filter change
+              setCurrentPage(1);
             }}
             className="input-field pl-10 w-full sm:w-auto"
           >
@@ -102,13 +235,19 @@ const Visits = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <Link to={`/visits/${visit._id}`} className="text-indigo-600 hover:text-indigo-900 flex items-center justify-end">
-                      <Eye className="h-5 w-5 mr-1"/>
-                      View
-                    </Link>
+                    <ActionsDropdown 
+                      visit={visit}
+                      isOpen={openDropdown === visit._id}
+                      onToggle={toggleDropdown}
+                    />
                   </td>
                 </tr>
               ))}
+                <tr>
+                  <td colSpan="6" className="text-center py-5 text-gray-500">
+                    No visits found.
+                  </td>
+                </tr>
             </tbody>
           </table>
         </div>

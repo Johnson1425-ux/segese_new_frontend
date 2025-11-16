@@ -26,8 +26,8 @@ const Doctors = () => {
   }, []);
 
   const filteredDoctors = doctors.filter(doctor =>
-    `${doctor.firstName} ${doctor.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    doctor.specialization?.toLowerCase().includes(searchTerm.toLowerCase())
+    `${doctor.firstName} ${doctor.lastName}`.toLowerCase().includes(searchTerm.toLowerCase())
+    // doctor.specialization?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (isLoading) return <LoadingSpinner />;
@@ -54,8 +54,8 @@ const Doctors = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Specialization</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone Number</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
                 <th className="relative px-6 py-3"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
@@ -63,7 +63,7 @@ const Doctors = () => {
               {filteredDoctors.map((doctor) => (
                 <tr key={doctor._id}>
                   <td className="px-6 py-4 whitespace-nowrap font-medium">{doctor.firstName} {doctor.lastName}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{doctor.specialization}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{doctor.phone}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{doctor.email}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <Link

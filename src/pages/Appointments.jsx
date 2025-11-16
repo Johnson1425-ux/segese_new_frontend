@@ -14,7 +14,7 @@ const Appointments = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
 
-  const canManage = hasAnyRole(['admin', 'receptionist']);
+  const canManage = hasAnyRole(['admin', 'receptionist', 'doctor']);
 
   // Fetch appointments with detailed logging
   const { data: appointments, isLoading, isError, error } = useQuery(
@@ -66,19 +66,6 @@ const Appointments = () => {
     );
   }
 
-  // if (!canView) {
-  //   return (
-  //     <div className="p-6">
-  //       <div className="bg-red-50 border border-red-200 rounded-md p-4">
-  //         <h3 className="text-lg font-medium text-red-800">Access Denied</h3>
-  //         <p className="text-red-700">You don't have permission to view appointments.</p>
-  //         <p className="text-sm text-red-600 mt-2">Your role: {role}</p>
-  //         <p className="text-sm text-red-600">Required roles: admin, receptionist, or doctor</p>
-  //       </div>
-  //     </div>
-  //   );
-  // }
-
   if (isLoading) {
     return <LoadingSpinner />;
   }
@@ -93,7 +80,6 @@ const Appointments = () => {
           
           <button
             onClick={() => {
-              // console.log('🔄 Retrying query...');
               queryClient.invalidateQueries('appointments');
             }}
             className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { CheckCircle, XCircle, Mail, ArrowLeft } from 'lucide-react';
+import { useParams, Link, useNavigate, NavLink } from 'react-router-dom';
+import { CheckCircle, XCircle, Mail, ArrowLeft, Heart, Loader } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 
 const VerifyEmail = () => {
@@ -46,64 +46,95 @@ const VerifyEmail = () => {
     switch (status) {
       case 'verifying':
         return (
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
+            <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Loader className="w-12 h-12 text-blue-600 animate-spin" />
+            </div>
+            
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
               Verifying your email
             </h2>
-            <p className="mt-2 text-center text-sm text-gray-600">
+            
+            <p className="text-gray-600">
               Please wait while we verify your email address...
             </p>
+
+            <div className="mt-8 flex justify-center">
+              <div className="flex space-x-2">
+                <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
+                <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+              </div>
+            </div>
           </div>
         );
 
       case 'success':
         return (
-          <div className="text-center">
-            <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
-            <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
+            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+              <CheckCircle className="w-12 h-12 text-green-600" />
+            </div>
+            
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
               Email verified successfully!
             </h2>
-            <p className="mt-2 text-center text-sm text-gray-600">
+            
+            <p className="text-gray-600 mb-8 leading-relaxed">
               {message}
             </p>
-            <div className="mt-6">
+
+            <div className="space-y-4">
               <Link
                 to="/dashboard"
-                className="font-medium text-blue-600 hover:text-blue-500 flex items-center justify-center"
+                className="inline-flex items-center justify-center w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-lg hover:shadow-xl font-medium"
               >
                 Go to Dashboard
               </Link>
+
+              <p className="text-sm text-gray-500">
+                Redirecting automatically in a few seconds...
+              </p>
             </div>
           </div>
         );
 
       case 'error':
         return (
-          <div className="text-center">
-            <XCircle className="mx-auto h-12 w-12 text-red-500" />
-            <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-              Verification failed
+          <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
+            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <XCircle className="w-12 h-12 text-red-600" />
+            </div>
+            
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Email verification failed
             </h2>
-            <p className="mt-2 text-center text-sm text-gray-600">
+            
+            <p className="text-gray-600 mb-8 leading-relaxed">
               {message}
             </p>
-            <div className="mt-6 space-y-4">
+
+            <div className="space-y-3">
               <button
                 onClick={handleResendVerification}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="inline-flex items-center justify-center w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-lg hover:shadow-xl font-medium"
               >
-                <Mail className="h-4 w-4 mr-2" />
+                <Mail className="w-5 h-5 mr-2" />
                 Resend verification email
               </button>
+
               <Link
                 to="/login"
-                className="font-medium text-blue-600 hover:text-blue-500 flex items-center justify-center"
+                className="inline-flex items-center justify-center w-full py-3 px-4 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-300 font-medium"
               >
-                <ArrowLeft className="h-4 w-4 mr-2" />
+                <ArrowLeft className="w-5 h-5 mr-2" />
                 Back to login
               </Link>
             </div>
+
+            <p className="text-sm text-gray-500 mt-6">
+              Need help? <a href="mailto:support@example.com" className="text-blue-600 hover:underline">Contact support</a>
+            </p>
           </div>
         );
 
@@ -113,9 +144,20 @@ const VerifyEmail = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
         {renderContent()}
+
+        <div className="mt-8 text-center">
+          <div className="flex items-center justify-center text-gray-600">
+            <div 
+              className="w-14 h-14 rounded-lg transform group-hover:scale-110 transition-transform duration-300 bg-cover bg-center"
+              style={{ backgroundImage: "url('/SMC Logo.png')" }}
+            >
+            </div>
+            <span className="text-sm">Made with care</span>
+          </div>
+        </div>
       </div>
     </div>
   );

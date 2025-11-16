@@ -5,8 +5,6 @@ import { Search, Filter, Calendar, User, MapPin, Phone, Eye, Edit, AlertCircle }
 import { patientService } from '../utils/patientService.js';
 
 const PatientSearch = () => {
-  // Search criteria state
-  const [searchMethod, setSearchMethod] = useState('name');
   const [searchQuery, setSearchQuery] = useState('');
   const [patients, setPatients] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState(null);
@@ -16,9 +14,6 @@ const PatientSearch = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
-
-  // Advanced filter state (simplified to match backend capabilities)
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   const searchPatients = async () => {
     setLoading(true);
@@ -39,7 +34,7 @@ const PatientSearch = () => {
 
       if (response.status === 'success') {
         // Handle the response structure from your backend
-        const patientsData = response.data || response.patients || [];
+        const patientsData = response.patients || [];
         setPatients(Array.isArray(patientsData) ? patientsData : []);
         setTotalResults(response.count || patientsData.length || 0);
         
@@ -181,18 +176,13 @@ const PatientSearch = () => {
                   <label className="block text-sm font-medium text-gray-700">Marital Status</label>
                   <p className="mt-1 text-sm text-gray-900">{patient.maritalStatus || 'N/A'}</p>
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Occupation</label>
-                  <p className="mt-1 text-sm text-gray-900">{patient.occupation || 'N/A'}</p>
-                </div>
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700">Address</label>
                 <p className="mt-1 text-sm text-gray-900">
                   {patient.address ? 
-                    `${patient.address.street}, ${patient.address.city}, ${patient.address.state} ${patient.address.zipCode}, ${patient.address.country}`.replace(/,\s*,/g, ',').replace(/^,\s*|,\s*$/g, '') 
+                    `${patient.address.street}, ${patient.address.ward}, ${patient.address.district}, ${patient.address.region}, ${patient.address.country}`.replace(/,\s*,/g, ',').replace(/^,\s*|,\s*$/g, '') 
                     : 'N/A'
                   }
                 </p>
@@ -339,9 +329,9 @@ const PatientSearch = () => {
         )}
 
         {/* Results Table */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="bg-white rounded-lg shadow-md overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="min-w-full">
+            <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No.</th>

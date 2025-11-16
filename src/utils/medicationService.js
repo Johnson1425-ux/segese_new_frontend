@@ -1,8 +1,31 @@
 import api from './api';
 
-export const medicationService = {
+const medicationService = {
   getAll: async () => {
-    const response = await api.get('/medications');
-    return response.data;
+    return api.get('/medications');
   },
+
+  searchMedicines: (form, name) => {
+    return api.get('/medications/search', {
+      params: { name }
+    });
+  },
+
+  getMedicineById: (id) => {
+    return api.get(`medications/${id}`);
+  },
+
+  createMedicine: async (medicationData) => {
+    return api.post('/medications', medicationData);
+  },
+
+  updateMedicine: async (id, medicationData) => {
+    return api.put(`/medications/${id}`, medicationData);
+  },
+
+  deleteMedicine: async (id) => {
+    return api.delete(`/medications/${id}`);
+  }
 };
+
+export default medicationService;

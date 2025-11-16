@@ -56,15 +56,13 @@ const UserForm = () => {
           phone: data.phone,
           role: data.role,
           department: data.department,
-          specialization: data.specialization,
-          licenseNumber: data.licenseNumber,
           dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth).toISOString().split('T')[0] : '',
           gender: data.gender,
-          address: data.address?.street || '',
-          city: data.address?.city || '',
-          state: data.address?.state || '',
-          zipCode: data.address?.zipCode || '',
           country: data.address?.country || '',
+          region: data.address?.region || '',
+          district: data.address?.district || '',
+          ward: data.address?.ward || '',
+          street: data.address?.street || '',
         });
       },
     }
@@ -102,8 +100,13 @@ const UserForm = () => {
 
   const roles = [
     { value: 'receptionist', label: 'Receptionist', description: 'Register patients, start and end visits' },
-    { value: 'nurse', label: 'Nurse', description: 'Assist with patient care and appointment management' },
+    { value: 'pharmacist', label: 'Pharmacist', description: 'Provide prescriptions and manage medications' },
     { value: 'doctor', label: 'Doctor', description: 'Manage patients, appointments, and medical records' },
+    { value: 'lab_technician', label: 'Lab technician', description: 'Manage lab orders and update results' },
+    { value: 'radiologist', label: 'Radiologist', description: 'Manage radiology requests and update scan findings' },
+    { value: 'surgeon', label: 'Surgeon', description: 'Perform surgery procedures and operations' },
+    { value: 'mortuary_attendant', label: 'Mortuary Attendant', description: 'Manage corpses and cabinets' },
+    { value: 'nurse', label: 'Nurse', description: 'Assist doctors and care for patients' },
     { value: 'admin', label: 'Administrator', description: 'Full system access and user management' },
   ];
 
@@ -118,23 +121,14 @@ const UserForm = () => {
     dateOfBirth: data.dateOfBirth,
     gender: data.gender,
     address: {
-      street: data.address,
-      city: data.city,
-      state: data.state,
-      zipCode: data.zipCode,
       country: data.country,
+      region: data.region,
+      district: data.district,
+      ward: data.ward,
+      street: data.street,
     },
   };
 
-  // Add role-specific fields if present
-  if (data.specialization) {
-    userData.specialization = data.specialization;
-  }
-  if (data.licenseNumber) {
-    userData.licenseNumber = data.licenseNumber;
-  }
-
-  // Only include password fields for new users
   if (!isEditing) {
     userData.password = data.password;
     userData.confirmPassword = data.confirmPassword;
@@ -175,7 +169,7 @@ const UserForm = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Staff Role
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               {roles.map((role) => (
                 <label
                   key={role.value}
@@ -356,106 +350,11 @@ const UserForm = () => {
             )}
           </div>
 
-          {/* Role-specific fields */}
-          {watch('role') === 'doctor' && (
-            <>
-              <div>
-                <label htmlFor="specialization" className="block text-sm font-medium text-gray-700">
-                  Specialization
-                </label>
-                <input
-                  id="specialization"
-                  type="text"
-                  {...register('specialization', { required: 'Specialization is required' })}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="e.g., Cardiology, Neurology"
-                />
-                {errors.specialization && (
-                  <p className="mt-1 text-sm text-red-600">{errors.specialization.message}</p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="licenseNumber" className="block text-sm font-medium text-gray-700">
-                  License Number
-                </label>
-                <input
-                  id="licenseNumber"
-                  type="text"
-                  {...register('licenseNumber', { required: 'License number is required' })}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="Medical license number"
-                />
-                {errors.licenseNumber && (
-                  <p className="mt-1 text-sm text-red-600">{errors.licenseNumber.message}</p>
-                )}
-              </div>
-            </>
-          )}
-
           {/* Address */}
           <div>
-            <label htmlFor="address" className="block text-sm font-medium text-gray-700">
+            <label className="block text-lg font-medium text-gray-700">
               Address
             </label>
-            <div className="mt-1 relative">
-              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-              <input
-                id="address"
-                type="text"
-                {...register('address', { required: 'Address is required' })}
-                className="appearance-none relative block w-full px-10 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Street address"
-              />
-            </div>
-            {errors.address && <p className="mt-1 text-sm text-red-600">{errors.address.message}</p>}
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="city" className="block text-sm font-medium text-gray-700">
-                City
-              </label>
-              <input
-                id="city"
-                type="text"
-                {...register('city', { required: 'City is required' })}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="City"
-              />
-              {errors.city && <p className="mt-1 text-sm text-red-600">{errors.city.message}</p>}
-            </div>
-
-            <div>
-              <label htmlFor="state" className="block text-sm font-medium text-gray-700">
-                State/Province
-              </label>
-              <input
-                id="state"
-                type="text"
-                {...register('state', { required: 'State is required' })}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="State/Province"
-              />
-              {errors.state && <p className="mt-1 text-sm text-red-600">{errors.state.message}</p>}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="zipCode" className="block text-sm font-medium text-gray-700">
-                ZIP/Postal Code
-              </label>
-              <input
-                id="zipCode"
-                type="text"
-                {...register('zipCode', { required: 'ZIP code is required' })}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="ZIP/Postal Code"
-              />
-              {errors.zipCode && <p className="mt-1 text-sm text-red-600">{errors.zipCode.message}</p>}
-            </div>
-
             <div>
               <label htmlFor="country" className="block text-sm font-medium text-gray-700">
                 Country
@@ -468,6 +367,69 @@ const UserForm = () => {
                 placeholder="Country"
               />
               {errors.country && <p className="mt-1 text-sm text-red-600">{errors.country.message}</p>}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="region" className="block text-sm font-medium text-gray-700">
+                  Region
+                </label>
+                <input
+                  id="region"
+                  type="text"
+                  {...register('region', { required: 'Region is required' })}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="Region"
+                />
+                {errors.region && <p className="mt-1 text-sm text-red-600">{errors.region.message}</p>}
+              </div>
+
+              <div>
+                <label htmlFor="district" className="block text-sm font-medium text-gray-700">
+                  District
+                </label>
+                <input
+                  id="district"
+                  type="text"
+                  {...register('district', { required: 'District is required' })}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="District"
+                />
+                {errors.district && <p className="mt-1 text-sm text-red-600">{errors.district.message}</p>}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="ward" className="block text-sm font-medium text-gray-700">
+                  Ward
+                </label>
+                <input
+                  id="ward"
+                  type="text"
+                  {...register('ward', { required: 'Ward code is required' })}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="Ward"
+                />
+                {errors.ward && <p className="mt-1 text-sm text-red-600">{errors.ward.message}</p>}
+              </div>
+
+              <div >
+                <label htmlFor="street" className="block text-sm font-medium text-gray-700">
+                  Street
+                </label>
+                <div className="mt-1 relative">
+                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                  <input
+                    id="street"
+                    type="text"
+                    {...register('street', { required: 'Street is required' })}
+                    className="appearance-none relative block w-full px-10 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                    placeholder="Street address"
+                  />
+                </div>
+                {errors.street && <p className="mt-1 text-sm text-red-600">{errors.street.message}</p>}
+              </div>
             </div>
           </div>
 

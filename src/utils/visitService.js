@@ -38,17 +38,22 @@ export const visitService = {
   },
 
   updateDiagnosis: async ({ visitId, diagnosisData }) => {
-    const response = await api.put(`/visits/${visitId}/diagnosis`, diagnosisData);
+    const response = await api.post(`/visits/${visitId}/diagnosis`, diagnosisData);
     return response.data;
   },
 
   addLabOrder: async ({ visitId, orderData }) => {
-    const response = await api.post(`/visits/${visitId}/lab-orders`, orderData);
-    return response.data;
+  const response = await api.post(`/visits/${visitId}/lab-orders`, orderData);
+  return response.data;
   },
 
   addPrescription: async ({ visitId, prescriptionData }) => {
     const response = await api.post(`/visits/${visitId}/prescriptions`, prescriptionData);
     return response.data;
   },
+
+  getPrescriptions: async (id) => {
+    const response = await api.get(`/visits/${id}/prescriptions`);
+    response.data;
+  }
 };

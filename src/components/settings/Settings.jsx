@@ -1,25 +1,20 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { 
-  Settings as SettingsIcon, 
   Lock,
-  Shield, 
   Eye, 
   EyeOff, 
-  Save, 
-  X,
+  Save,
   CheckCircle,
   AlertTriangle
 } from 'lucide-react';
-import ThemeToggle from '../common/ThemeToggle.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 
 const Settings = () => {
-  const { user, changePassword, isLoading } = useAuth();
+  const { changePassword, isLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [passwordSuccess, setPasswordSuccess] = useState(false);
 
   const {
     register,
@@ -34,8 +29,7 @@ const Settings = () => {
 
   const handlePasswordSubmit = async (data) => {
     try {
-      await changePassword(data.currentPassword, data.newPassword);
-      setPasswordSuccess(true);
+      await changePassword(data.currentPassword, data.newPassword, data.confirmPassword);
       reset({
         currentPassword: '',
         newPassword: '',
@@ -53,42 +47,48 @@ const Settings = () => {
     }
   };
 
-  const renderSecuritySettings = () => (
+  return (
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-medium text-gray-900 mb-4">Change Password</h3>
-        
-        {passwordSuccess && (
-          <div className="mb-4 rounded-md bg-green-50 p-4">
+
+        {/* Error Message */}
+        {errors.root && (
+          <div className="mb-6 rounded-md bg-red-50 border border-red-200 p-4">
             <div className="flex">
-              <CheckCircle className="h-5 w-5 text-green-400" />
+              <AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0" />
               <div className="ml-3">
-                <p className="text-sm font-medium text-green-800">
-                  Password changed successfully!
+                <p className="text-sm font-medium text-red-800">
+                  {errors.root.message}
                 </p>
               </div>
             </div>
           </div>
         )}
 
-        <form onSubmit={handleSubmit(handlePasswordSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(handlePasswordSubmit)} className="space-y-6">
+          {/* Current Password */}
           <div>
-            <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 mb-2">
               Current Password
             </label>
-            <div className="mt-1 relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Lock className="h-5 w-5 text-gray-400" />
+              </div>
               <input
                 id="currentPassword"
                 type={showPassword ? 'text' : 'password'}
-                {...register('currentPassword', { required: 'Current password is required' })}
-                className="appearance-none relative block w-half px-10 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                {...register('currentPassword', {
+                  required: 'Current password is required'
+                })}
+                className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter current password"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
               >
                 {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
@@ -98,12 +98,15 @@ const Settings = () => {
             )}
           </div>
 
+          {/* New Password */}
           <div>
-            <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-2">
               New Password
             </label>
-            <div className="mt-1 relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Lock className="h-5 w-5 text-gray-400" />
+              </div>
               <input
                 id="newPassword"
                 type={showNewPassword ? 'text' : 'password'}
@@ -112,16 +115,16 @@ const Settings = () => {
                   minLength: { value: 8, message: 'Password must be at least 8 characters' },
                   pattern: {
                     value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
-                    message: 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
+                    message: 'Password must meet all requirements below',
                   },
                 })}
-                className="appearance-none relative block w-half px-10 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter new password"
               />
               <button
                 type="button"
                 onClick={() => setShowNewPassword(!showNewPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
               >
                 {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
@@ -131,12 +134,15 @@ const Settings = () => {
             )}
           </div>
 
+          {/* Confirm Password */}
           <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
               Confirm New Password
             </label>
-            <div className="mt-1 relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Lock className="h-5 w-5 text-gray-400" />
+              </div>
               <input
                 id="confirmPassword"
                 type={showConfirmPassword ? 'text' : 'password'}
@@ -144,13 +150,13 @@ const Settings = () => {
                   required: 'Please confirm your password',
                   validate: (value) => value === newPassword || 'Passwords do not match',
                 })}
-                className="appearance-none relative block w-full px-10 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Confirm new password"
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
               >
                 {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
@@ -161,9 +167,9 @@ const Settings = () => {
           </div>
 
           {/* Password Requirements */}
-          <div className="bg-gray-50 p-4 w-half rounded-md">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Password requirements:</h4>
-            <ul className="text-xs text-gray-600 space-y-1">
+          <div className="bg-gray-50 border rounded-lg p-4">
+            <h4 className="text-sm font-medium text-gray-700 mb-3">Password requirements:</h4>
+            <ul className="text-sm text-gray-600 space-y-1">
               <li>• At least 8 characters long</li>
               <li>• Contains at least one uppercase letter</li>
               <li>• Contains at least one lowercase letter</li>
@@ -172,11 +178,11 @@ const Settings = () => {
             </ul>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end pt-4">
             <button
               type="submit"
               disabled={isLoading}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <Save className="h-4 w-4 mr-2" />
               {isLoading ? 'Changing...' : 'Change Password'}
@@ -186,8 +192,6 @@ const Settings = () => {
       </div>
     </div>
   );
-
-  return renderSecuritySettings();
 };
 
 export default Settings;
