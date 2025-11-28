@@ -374,8 +374,8 @@ export default function AboutUs() {
                 </div>
                 <div className="flex items-center">
                   <Mail className="w-5 h-5 mr-3 text-blue-400" />
-                  <a href="mailto:hospital@example.com" className="hover:text-white transition-colors">
-                    hospital@example.com
+                  <a href="mailto:publichope2@gmail.com" className="hover:text-white transition-colors">
+                    publichope2@gmail.com
                   </a>
                 </div>
                 <div className="flex items-center">
