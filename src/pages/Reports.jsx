@@ -387,15 +387,6 @@ const calculateAge = (dateOfBirth) => {
   return age;
 };
 
-// Helper function for currency formatting (already exists in your component)
-const formatCurrency = (amount) => {
-  return new Intl.NumberFormat('en-TZ', {
-    style: 'currency',
-    currency: 'TZS',
-    minimumFractionDigits: 0
-  }).format(amount || 0);
-};
-
   const handleExportReport = (format) => {
     if (!reportData) return;
 
