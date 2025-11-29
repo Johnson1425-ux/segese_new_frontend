@@ -69,7 +69,7 @@ function SignInDropdown() {
             <div className="border-t border-gray-100 my-1"></div>
 
             <a
-              href="https://fufumo-pharmacy.onrender.com/"
+              href="https://fufumo-pharmacy.com/"
               className="flex items-center px-4 py-3 text-gray-700 hover:bg-teal-50 hover:text-teal-600 transition-colors duration-200 group"
               onClick={() => setIsOpen(false)}
             >
