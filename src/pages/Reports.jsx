@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Calendar, DollarSign, Users, Activity, Pill, Stethoscope, Download, Filter, TrendingUp, Building2, AlertCircle } from 'lucide-react';
 import api from '../utils/api';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const Reports = () => {
   const [selectedReport, setSelectedReport] = useState(null);
@@ -162,6 +164,238 @@ const Reports = () => {
     }
   };
 
+  const exportToPDF = (data) => {
+  if (!data || data.length === 0) {
+    alert('No data to export');
+    return;
+  }
+
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  
+  // Header
+  doc.setFontSize(18);
+  doc.setFont(undefined, 'bold');
+  doc.text(selectedReport?.name || 'Report', 14, 20);
+  
+  // Report metadata
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'normal');
+  doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
+  
+  if (dateRange.start || dateRange.end) {
+    const dateRangeText = `Date Range: ${dateRange.start || 'N/A'} to ${dateRange.end || 'N/A'}`;
+    doc.text(dateRangeText, 14, 34);
+  }
+  
+  doc.text(`Total Records: ${data.length}`, 14, dateRange.start || dateRange.end ? 40 : 34);
+  
+  const startY = dateRange.start || dateRange.end ? 46 : 40;
+
+  // Prepare table data based on report type
+  let columns = [];
+  let rows = [];
+
+  // Dynamic column and row generation based on data structure
+  if (data.length > 0) {
+    const sampleItem = data[0];
+    
+    // Define columns based on report type
+    switch (selectedReport?.id) {
+      case 'patient-list':
+      case 'patient-search':
+      case 'patient-insurance':
+        columns = [
+          { header: 'Patient ID', dataKey: 'patientId' },
+          { header: 'Name', dataKey: 'name' },
+          { header: 'Age', dataKey: 'age' },
+          { header: 'Gender', dataKey: 'gender' },
+          { header: 'Contact', dataKey: 'contact' },
+          { header: 'Insurance', dataKey: 'insurance' }
+        ];
+        rows = data.map(item => ({
+          patientId: item.patientId || 'N/A',
+          name: `${item.firstName || ''} ${item.lastName || ''}`.trim(),
+          age: item.dateOfBirth ? calculateAge(item.dateOfBirth) : 'N/A',
+          gender: item.gender || 'N/A',
+          contact: item.contactNumber || 'N/A',
+          insurance: item.insuranceProvider || 'None'
+        }));
+        break;
+
+      case 'invoice-list':
+      case 'invoice-pending':
+      case 'invoice-paid':
+        columns = [
+          { header: 'Invoice #', dataKey: 'invoiceNumber' },
+          { header: 'Patient', dataKey: 'patient' },
+          { header: 'Amount', dataKey: 'amount' },
+          { header: 'Paid', dataKey: 'paid' },
+          { header: 'Balance', dataKey: 'balance' },
+          { header: 'Status', dataKey: 'status' }
+        ];
+        rows = data.map(item => ({
+          invoiceNumber: item.invoiceNumber || 'N/A',
+          patient: item.patient?.firstName ? `${item.patient.firstName} ${item.patient.lastName}` : 'N/A',
+          amount: formatCurrency(item.totalAmount || 0),
+          paid: formatCurrency(item.paidAmount || 0),
+          balance: formatCurrency((item.totalAmount || 0) - (item.paidAmount || 0)),
+          status: item.status || 'N/A'
+        }));
+        break;
+
+      case 'ipd-admissions':
+      case 'ipd-active':
+      case 'ipd-discharged':
+        columns = [
+          { header: 'Record #', dataKey: 'recordNumber' },
+          { header: 'Patient', dataKey: 'patient' },
+          { header: 'Ward', dataKey: 'ward' },
+          { header: 'Admission Date', dataKey: 'admission' },
+          { header: 'Discharge Date', dataKey: 'discharge' },
+          { header: 'Status', dataKey: 'status' }
+        ];
+        rows = data.map(item => ({
+          recordNumber: item.recordNumber || 'N/A',
+          patient: item.patient?.firstName ? `${item.patient.firstName} ${item.patient.lastName}` : 'N/A',
+          ward: item.ward || 'N/A',
+          admission: item.admissionDate ? new Date(item.admissionDate).toLocaleDateString() : 'N/A',
+          discharge: item.dischargeDate ? new Date(item.dischargeDate).toLocaleDateString() : 'N/A',
+          status: item.status || 'N/A'
+        }));
+        break;
+
+      case 'visits-summary':
+      case 'visit-details':
+        columns = [
+          { header: 'Visit ID', dataKey: 'visitId' },
+          { header: 'Patient', dataKey: 'patient' },
+          { header: 'Date', dataKey: 'date' },
+          { header: 'Type', dataKey: 'type' },
+          { header: 'Diagnosis', dataKey: 'diagnosis' }
+        ];
+        rows = data.map(item => ({
+          visitId: item._id?.slice(-8) || 'N/A',
+          patient: item.patient?.firstName ? `${item.patient.firstName} ${item.patient.lastName}` : 'N/A',
+          date: item.visitDate ? new Date(item.visitDate).toLocaleDateString() : 'N/A',
+          type: item.visitType || 'N/A',
+          diagnosis: item.diagnosis || 'N/A'
+        }));
+        break;
+
+      case 'dispensing-records':
+      case 'direct-dispensing':
+        columns = [
+          { header: 'Dispensing ID', dataKey: 'id' },
+          { header: 'Patient/Customer', dataKey: 'patient' },
+          { header: 'Medicine', dataKey: 'medicine' },
+          { header: 'Quantity', dataKey: 'quantity' },
+          { header: 'Date', dataKey: 'date' }
+        ];
+        rows = data.map(item => ({
+          id: item._id?.slice(-8) || 'N/A',
+          patient: item.patient ? `${item.patient.firstName} ${item.patient.lastName}` : item.customerName || 'N/A',
+          medicine: item.medicine?.name || 'N/A',
+          quantity: item.quantity || 'N/A',
+          date: item.dispensedDate ? new Date(item.dispensedDate).toLocaleDateString() : 'N/A'
+        }));
+        break;
+
+      case 'procedures-list':
+      case 'procedures-scheduled':
+      case 'procedures-completed':
+        columns = [
+          { header: 'Procedure', dataKey: 'procedure' },
+          { header: 'Patient', dataKey: 'patient' },
+          { header: 'Date', dataKey: 'date' },
+          { header: 'Surgeon', dataKey: 'surgeon' },
+          { header: 'Status', dataKey: 'status' }
+        ];
+        rows = data.map(item => ({
+          procedure: item.procedureName || 'N/A',
+          patient: item.patient?.firstName ? `${item.patient.firstName} ${item.patient.lastName}` : 'N/A',
+          date: item.procedureDate ? new Date(item.procedureDate).toLocaleDateString() : 'N/A',
+          surgeon: item.surgeon || 'N/A',
+          status: item.status || 'N/A'
+        }));
+        break;
+
+      default:
+        // Generic fallback - use first 6 keys from the data
+        const keys = Object.keys(sampleItem).slice(0, 6);
+        columns = keys.map(key => ({
+          header: key.charAt(0).toUpperCase() + key.slice(1),
+          dataKey: key
+        }));
+        rows = data.map(item => {
+          const row = {};
+          keys.forEach(key => {
+            let value = item[key];
+            if (typeof value === 'object' && value !== null) {
+              value = JSON.stringify(value);
+            }
+            row[key] = value || 'N/A';
+          });
+          return row;
+        });
+    }
+  }
+
+  // Generate table
+  doc.autoTable({
+    startY: startY,
+    head: [columns.map(col => col.header)],
+    body: rows.map(row => columns.map(col => row[col.dataKey] || 'N/A')),
+    theme: 'grid',
+    styles: {
+      fontSize: 8,
+      cellPadding: 3,
+    },
+    headStyles: {
+      fillColor: [59, 130, 246], // Blue color
+      textColor: 255,
+      fontStyle: 'bold',
+    },
+    alternateRowStyles: {
+      fillColor: [245, 247, 250],
+    },
+    margin: { top: 10, right: 14, bottom: 10, left: 14 },
+    didDrawPage: function (data) {
+      // Footer
+      doc.setFontSize(8);
+      doc.setTextColor(128);
+      const footerText = `Page ${doc.internal.getNumberOfPages()}`;
+      doc.text(footerText, pageWidth / 2, pageHeight - 10, { align: 'center' });
+    }
+  });
+
+  // Save PDF
+  const fileName = `report-${selectedReport?.id}-${new Date().toISOString().split('T')[0]}.pdf`;
+  doc.save(fileName);
+};
+
+// Helper function to calculate age
+const calculateAge = (dateOfBirth) => {
+  const dob = new Date(dateOfBirth);
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const monthDiff = today.getMonth() - dob.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+    age--;
+  }
+  return age;
+};
+
+// Helper function for currency formatting (already exists in your component)
+const formatCurrency = (amount) => {
+  return new Intl.NumberFormat('en-TZ', {
+    style: 'currency',
+    currency: 'TZS',
+    minimumFractionDigits: 0
+  }).format(amount || 0);
+};
+
   const handleExportReport = (format) => {
     if (!reportData) return;
 
@@ -171,8 +405,8 @@ const Reports = () => {
       exportToCSV(dataToExport);
     } else if (format === 'json') {
       exportToJSON(dataToExport);
-    } else {
-      alert(`${format.toUpperCase()} export will be implemented with a PDF library`);
+    } else if (format=== 'pdf') {
+      exportToPDF(dataToExport);
     }
   };
 
