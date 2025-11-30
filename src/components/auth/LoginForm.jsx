@@ -294,8 +294,8 @@ const LoginForm = () => {
           <div className="mt-8 text-center">
             <p className="text-sm text-gray-600">
               Need help? Contact our support team at{' '}
-              <a href="mailto:hospital@example.com" className="text-blue-600 hover:text-blue-700 font-medium">
-                hospital@example.com
+              <a href="mailto:publichope2@gmail.com" className="text-blue-600 hover:text-blue-700 font-medium">
+                publichope2@gmail.com
               </a>
             </p>
           </div>
