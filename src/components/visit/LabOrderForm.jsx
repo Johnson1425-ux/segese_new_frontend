@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { Link } from 'react-router-dom';
 import { useMutation, useQueryClient, useQuery } from 'react-query';
@@ -9,30 +9,9 @@ import { labTestService } from '../../utils/labTestService';
 import api from '../../utils/api';
 import LoadingSpinner from '../common/LoadingSpinner';
 
-// const labTestService = {
-//   getAll: () => api.get('/lab-tests'),
-//   create: (data) => api.post('/lab-tests', data),
-//   getById: () => api.get(`/lab-tests/${id}`),
-//   update: (id, data) => api.put(`/lab-tests/${id}`, data),
-// };
-
 const LabOrderForm = ({ visitId, existingOrders, patientId }) => {
   const { control, register, handleSubmit, reset, formState: { isSubmitting } } = useForm();
   const queryClient = useQueryClient();
-  
-  // const { data: testData, isLoading, error } = useQuery('labTests', labTestService.getAll);
-
-  // if (isLoading) {
-  //   return <LoadingSpinner />;
-  // }
-
-  // if (error) {
-  //   toast.error('Failed to fetch completed lab tests');
-  //   return <div className="text-white text-center">Error loading data. Please refresh page.</div>
-  // }
-
-  // const tests = testData?.data || [];
-  // const completedTests = tests.filter(req => req.status === 'Completed', patientId);
 
   const mutation = useMutation(labTestService.create, {
     onSuccess: () => {
@@ -43,8 +22,8 @@ const LabOrderForm = ({ visitId, existingOrders, patientId }) => {
     onError: (error) => toast.error(error.response?.data?.message || 'Failed to add order.'),
   });
 
-
-  const loadOptions = async (inputValue, callback) => {
+  // Define loadOptions with useCallback to prevent recreation
+  const loadOptions = useCallback(async (inputValue, callback) => {
     if (inputValue.length < 2) {
       callback([]);
       return;
@@ -60,13 +39,15 @@ const LabOrderForm = ({ visitId, existingOrders, patientId }) => {
       console.error("Error searching lab tests:", error);
       callback([]);
     }
-  };
+  }, []); // Empty dependency array since api is stable
 
-  // Debounce the loadOptions function to prevent excessive API calls
-  const debouncedLoadOptions = useCallback(debounce(loadOptions, 400), []);
+  // Use useMemo to create the debounced function only once
+  const debouncedLoadOptions = useMemo(
+    () => debounce(loadOptions, 400),
+    [loadOptions]
+  );
 
   const onSubmit = (data) => {
-    // data.test will be an object like { value: 'Blood Test', label: 'Blood Test - $50' }
     if (!data.test) {
         toast.error("Please select a test.");
         return;
@@ -105,12 +86,6 @@ const LabOrderForm = ({ visitId, existingOrders, patientId }) => {
           <button type="submit" className="btn-primary" disabled={isSubmitting}>Add Order</button>
         </div>
       </form>
-      {/* <h4 className="font-semibold mb-2">Existing Orders</h4>
-      {/* <ul className="space-y-2">
-        {existingOrders?.map(order => (
-          <li key={order._id} className="p-2 border rounded-md bg-gray-50">{order.testName} - <span className="capitalize text-gray-600">{order.status}</span></li>
-        ))}
-      </ul> */}
     </div>
   );
 };
