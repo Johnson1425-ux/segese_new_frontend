@@ -83,8 +83,8 @@ const ReleaseManagement = () => {
 
   if (isLoading) return <LoadingSpinner />;
 
-  const releases = releasesData?.data?.data || [];
-  const corpses = corpsesData?.data?.data || [];
+  const releases = releasesData?.data || [];
+  const corpses = corpsesData?.data || [];
   const availableCorpses = corpses.filter(corpse => corpse.status !== 'Released');
 
   const handleCreateRelease = (e) => {
