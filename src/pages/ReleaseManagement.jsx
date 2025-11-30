@@ -83,8 +83,13 @@ const ReleaseManagement = () => {
 
   if (isLoading) return <LoadingSpinner />;
 
-  const releases = releasesData?.data || [];
-  const corpses = corpsesData?.data || [];
+  // Extract data from React Query response
+  // Handle both nested structures: releasesData.data.data or releasesData.data
+  const releasesArray = releasesData?.data?.data || releasesData?.data || [];
+  const corpsesArray = corpsesData?.data?.data || corpsesData?.data || [];
+  
+  const releases = Array.isArray(releasesArray) ? releasesArray : [];
+  const corpses = Array.isArray(corpsesArray) ? corpsesArray : [];
   const availableCorpses = corpses.filter(corpse => corpse.status !== 'Released');
 
   const handleCreateRelease = (e) => {
