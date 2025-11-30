@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { useMutation, useQueryClient } from 'react-query';
 import Select from 'react-select/async'
@@ -26,7 +26,7 @@ const RadiologyOrderForm = ({ visitId, patientId }) => {
     },
   });
 
-  const loadOptions = async (inputValue, callback) => {
+  const loadOptions = useCallback(async (inputValue, callback) => {
     if (inputValue.length < 2) {
       callback([]);
       return;
@@ -42,9 +42,12 @@ const RadiologyOrderForm = ({ visitId, patientId }) => {
       console.error("Error searching imaging :", error);
       callback([]);
     }
-  };
+  }, []);
 
-  const debouncedLoadOptions = useCallback(debounce(loadOptions, 400), []);
+  const debouncedLoadOptions = useMemo(
+    () => debounce(loadOptions, 400),
+    [loadOptions]
+  );
 
   const onSubmit = (data) => {
     if (!data.test) {
@@ -77,7 +80,6 @@ const RadiologyOrderForm = ({ visitId, patientId }) => {
             )}
           />
         </div>
-
         <div>
           <label className="label-field">Body Part to Scan</label>
           <input 
@@ -86,7 +88,6 @@ const RadiologyOrderForm = ({ visitId, patientId }) => {
           />
           {errors.bodyPart && <p className="text-red-500 text-sm mt-1">{errors.bodyPart.message}</p>}
         </div>
-
         <div>
           <label className="label-field">Reason for Scan / Clinical Notes</label>
           <textarea 
@@ -96,7 +97,6 @@ const RadiologyOrderForm = ({ visitId, patientId }) => {
           ></textarea>
           {errors.reason && <p className="text-red-500 text-sm mt-1">{errors.reason.message}</p>}
         </div>
-
         <div className="flex justify-end">
           <button type="submit" className="btn-primary" disabled={mutation.isLoading}>
             {mutation.isLoading ? 'Submitting...' : 'Submit Request'}
