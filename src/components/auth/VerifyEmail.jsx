@@ -1,44 +1,72 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate, NavLink } from 'react-router-dom';
-import { CheckCircle, XCircle, Mail, ArrowLeft, Heart, Loader } from 'lucide-react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { CheckCircle, XCircle, Mail, ArrowLeft, Loader } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 
 const VerifyEmail = () => {
   const [status, setStatus] = useState('verifying'); // 'verifying', 'success', 'error'
   const [message, setMessage] = useState('');
+  const [isResending, setIsResending] = useState(false);
   const { token } = useParams();
-  const { verifyEmail, resendVerification } = useAuth();
+  const { verifyEmail, resendVerification, user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     const verifyEmailToken = async () => {
+      if (!token) {
+        setStatus('error');
+        setMessage('Invalid verification link. Please check your email or request a new verification link.');
+        return;
+      }
+
       try {
-        await verifyEmail(token);
+        const response = await verifyEmail(token);
         setStatus('success');
-        setMessage('Your email has been successfully verified! You can now access all features of the application.');
+        setMessage(response?.message || 'Your email has been successfully verified! You can now access all features of the application.');
+        
+        // Redirect after 3 seconds
         setTimeout(() => {
           navigate('/dashboard');
         }, 3000);
       } catch (error) {
         setStatus('error');
-        setMessage(error.response?.data?.message || 'Email verification failed. Please try again or contact support.');
+        
+        // Handle specific error cases
+        if (error.response?.status === 400) {
+          setMessage('This verification link has expired or is invalid. Please request a new verification email.');
+        } else if (error.response?.status === 404) {
+          setMessage('User account not found. Please contact support.');
+        } else {
+          setMessage(error.response?.data?.message || 'Email verification failed. Please try again or contact support.');
+        }
+        
+        console.error('Verification error:', error);
       }
     };
 
-    if (token) {
-      verifyEmailToken();
-    } else {
-      setStatus('error');
-      setMessage('Invalid verification link. Please check your email or request a new verification link.');
-    }
+    verifyEmailToken();
   }, [token, verifyEmail, navigate]);
 
   const handleResendVerification = async () => {
+    if (isResending) return;
+    
+    setIsResending(true);
     try {
-      await resendVerification();
-      setMessage('A new verification email has been sent to your email address.');
+      // You need to get the email from somewhere - either from user context or ask the user
+      // Option 1: If user is logged in, use their email
+      if (user?.email) {
+        await resendVerification(user.email);
+        setMessage('A new verification email has been sent to your email address. Please check your inbox.');
+        setStatus('success');
+      } else {
+        // Option 2: Redirect to a page where they can enter their email
+        navigate('/resend-verification');
+      }
     } catch (error) {
-      setMessage(error.response?.data?.message || 'Failed to resend verification email. Please try again.');
+      setMessage(error.response?.data?.message || 'Failed to resend verification email. Please try again later.');
+      console.error('Resend verification error:', error);
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -115,13 +143,33 @@ const VerifyEmail = () => {
             </p>
 
             <div className="space-y-3">
-              <button
-                onClick={handleResendVerification}
-                className="inline-flex items-center justify-center w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-lg hover:shadow-xl font-medium"
-              >
-                <Mail className="w-5 h-5 mr-2" />
-                Resend verification email
-              </button>
+              {user?.email ? (
+                <button
+                  onClick={handleResendVerification}
+                  disabled={isResending}
+                  className="inline-flex items-center justify-center w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-lg hover:shadow-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isResending ? (
+                    <>
+                      <Loader className="w-5 h-5 mr-2 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="w-5 h-5 mr-2" />
+                      Resend verification email
+                    </>
+                  )}
+                </button>
+              ) : (
+                <Link
+                  to="/resend-verification"
+                  className="inline-flex items-center justify-center w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-lg hover:shadow-xl font-medium"
+                >
+                  <Mail className="w-5 h-5 mr-2" />
+                  Request new verification email
+                </Link>
+              )}
 
               <Link
                 to="/login"
@@ -149,12 +197,11 @@ const VerifyEmail = () => {
         {renderContent()}
 
         <div className="mt-8 text-center">
-          <div className="flex items-center justify-center text-gray-600">
+          <div className="flex items-center justify-center gap-2 text-gray-600">
             <div 
-              className="w-14 h-14 rounded-lg transform group-hover:scale-110 transition-transform duration-300 bg-cover bg-center"
+              className="w-14 h-14 rounded-lg transform hover:scale-110 transition-transform duration-300 bg-cover bg-center"
               style={{ backgroundImage: "url('/SMC Logo.png')" }}
-            >
-            </div>
+            />
             <span className="text-sm">Made with care</span>
           </div>
         </div>
