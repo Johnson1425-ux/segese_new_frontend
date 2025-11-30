@@ -164,147 +164,161 @@ const ReleaseManagement = () => {
 
       {/* Create Release Modal */}
       {showCreateForm && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-          <div className="bg-white p-6 rounded-lg w-full max-w-2xl m-4">
-            <h2 className="text-xl font-bold mb-4">Create Release Request</h2>
-            <form onSubmit={handleCreateRelease} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Select Corpse *</label>
-                  <select 
-                    name="corpseId" 
-                    required
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select a corpse</option>
-                    {availableCorpses.map(corpse => (
-                      <option key={corpse._id} value={corpse._id}>
-                        {corpse.firstName} {corpse.lastName} - {corpse.cabinetNumber || 'No cabinet'}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Release Type *</label>
-                  <select 
-                    name="releaseType" 
-                    required
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select type</option>
-                    <option value="Burial">Burial</option>
-                    <option value="Cremation">Cremation</option>
-                    <option value="Transfer">Transfer</option>
-                    <option value="Repatriation">Repatriation</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Release Date *</label>
-                <input 
-                  name="releaseDate" 
-                  type="datetime-local"
-                  required
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                />
-              </div>
-
-              <div className="border-t pt-4">
-                <h3 className="font-medium mb-3">Released To</h3>
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white p-6 pb-4 border-b z-10">
+              <h2 className="text-xl font-bold">Create Release Request</h2>
+            </div>
+            
+            <form onSubmit={handleCreateRelease} className="p-6 pt-4">
+              <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
-                    <input 
-                      name="releasedToName" 
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Select Corpse *</label>
+                    <select 
+                      name="corpseId" 
                       required
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                    />
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select a corpse</option>
+                      {availableCorpses.map(corpse => (
+                        <option key={corpse._id} value={corpse._id}>
+                          {corpse.firstName} {corpse.lastName} - {corpse.cabinetNumber || 'No cabinet'}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Relationship</label>
-                    <input 
-                      name="relationship"
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                    />
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Release Type *</label>
+                    <select 
+                      name="releaseType" 
+                      required
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select type</option>
+                      <option value="Burial">Burial</option>
+                      <option value="Cremation">Cremation</option>
+                      <option value="Transfer">Transfer</option>
+                      <option value="Repatriation">Repatriation</option>
+                    </select>
                   </div>
+                </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">ID Number</label>
-                    <input 
-                      name="idNumber"
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                    />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Release Date *</label>
+                  <input 
+                    name="releaseDate" 
+                    type="datetime-local"
+                    required
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                  />
+                </div>
+
+                <div className="border-t pt-4">
+                  <h3 className="font-medium mb-3">Released To</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
+                      <input 
+                        name="releasedToName" 
+                        required
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Relationship</label>
+                      <input 
+                        name="relationship"
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">ID Number</label>
+                      <input 
+                        name="idNumber"
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                      <input 
+                        name="phone"
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                      />
+                    </div>
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                    <input 
-                      name="phone"
+                  
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
+                    <textarea 
+                      name="address"
+                      rows="2"
                       className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
                     />
                   </div>
                 </div>
-                
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
+
+                <div className="border-t pt-4">
+                  <h3 className="font-medium mb-3">Funeral Home (Optional)</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Funeral Home Name</label>
+                      <input 
+                        name="funeralHomeName"
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Contact Person</label>
+                      <input 
+                        name="funeralContact"
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                      <input 
+                        name="funeralPhone"
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">License Number</label>
+                      <input 
+                        name="licenseNumber"
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
+                    <textarea 
+                      name="funeralAddress"
+                      rows="2"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
                   <textarea 
-                    name="address"
-                    rows="2"
+                    name="releaseNotes"
+                    rows="3"
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
                   />
                 </div>
               </div>
 
-              <div className="border-t pt-4">
-                <h3 className="font-medium mb-3">Funeral Home (Optional)</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Funeral Home Name</label>
-                    <input 
-                      name="funeralHomeName"
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Contact Person</label>
-                    <input 
-                      name="funeralContact"
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                    <input 
-                      name="funeralPhone"
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">License Number</label>
-                    <input 
-                      name="licenseNumber"
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
-                <textarea 
-                  name="releaseNotes"
-                  rows="3"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                />
-              </div>
-
-              <div className="flex justify-end space-x-2 pt-4">
+              <div className="sticky bottom-0 bg-white pt-4 mt-4 border-t flex justify-end space-x-2">
                 <button 
                   type="button"
                   onClick={() => setShowCreateForm(false)}
@@ -432,9 +446,9 @@ const ReleaseManagement = () => {
 
       {/* Release Details Modal */}
       {selectedRelease && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-          <div className="bg-white p-6 rounded-lg w-full max-w-2xl m-4">
-            <div className="flex justify-between items-start mb-4">
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white p-6 pb-4 border-b z-10 flex justify-between items-start">
               <div>
                 <h2 className="text-xl font-bold">Release Details</h2>
                 <p className="text-gray-600">Receipt: {selectedRelease.receiptNumber}</p>
@@ -447,7 +461,7 @@ const ReleaseManagement = () => {
               </button>
             </div>
 
-            <div className="space-y-6">
+            <div className="p-6 pt-4 space-y-6">
               {/* Corpse Information */}
               <div className="border-b pb-4">
                 <h3 className="font-semibold text-gray-800 mb-2">Deceased Information</h3>
@@ -456,7 +470,7 @@ const ReleaseManagement = () => {
                     <span className="font-medium">Name:</span> {selectedRelease.corpseId?.firstName} {selectedRelease.corpseId?.lastName}
                   </div>
                   <div>
-                    <span className="font-medium">Date of Death:</span> {selectedRelease.corpseId?.dateOfDeath ? new Date(selectedRelease.corpseId.dateOfDeath).toLocaleDateString() : 'N/A'}
+                    <span className="font-medium">Date of Death:</span> {selectedRelease.corpseId?.dateOfDeath ? new Date(selectedRelease.corpseId?.dateOfDeath).toLocaleDateString() : 'N/A'}
                   </div>
                 </div>
               </div>
@@ -568,7 +582,7 @@ const ReleaseManagement = () => {
               )}
 
               {/* Action Buttons */}
-              <div className="flex justify-end space-x-2 pt-4 border-t">
+              <div className="flex justify-end space-x-2 pt-4 border-t sticky bottom-0 bg-white">
                 {selectedRelease.status === 'Pending' && (
                   <>
                     <button 
