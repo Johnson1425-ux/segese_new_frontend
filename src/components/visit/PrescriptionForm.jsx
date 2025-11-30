@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { useMutation, useQueryClient } from 'react-query';
 import Select from 'react-select/async';
@@ -22,7 +22,7 @@ const PrescriptionForm = ({ visitId, patientId, existingPrescriptions }) => {
   });
   const queryClient = useQueryClient();
 
-  const loadOptions = async (inputValue, callback) => {
+  const loadOptions = useCallback(async (inputValue, callback) => {
     if (inputValue.length < 2) {
       callback([]);
       return;
@@ -39,9 +39,12 @@ const PrescriptionForm = ({ visitId, patientId, existingPrescriptions }) => {
       console.error("Error searching medications:", error);
       callback([]);
     }
-  };
+  }, []);
 
-  const debouncedLoadOptions = useCallback(debounce(loadOptions, 400), []);
+  const debouncedLoadOptions = useMemo(
+    () => debounce(loadOptions, 400),
+    [loadOptions]
+  );
 
   const mutation = useMutation(prescriptionService.create, {
     onSuccess: () => {
