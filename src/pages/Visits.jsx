@@ -5,6 +5,7 @@ import { Plus, Search, Filter, Eye, ChevronLeft, ChevronRight, MoreVertical, Tra
 import { visitService } from '../utils/visitService.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import LoadingSpinner from '../components/common/LoadingSpinner.jsx';
+import PaymentConfirmation from '../components/visit/PaymentConfirmation.jsx';
 
 const Visits = () => {
   const { hasAnyRole } = useAuth();
@@ -51,6 +52,14 @@ const Visits = () => {
 
   const visits = visitsData?.data || [];
   const totalPages = visitsData?.totalPages || 1;
+
+  <PaymentConfirmation 
+     visit={selectedVisit} 
+     onSuccess={() => {
+       // Refresh visit data
+       visitService.getAllVisits();
+     }}
+   />
 
   if (isLoading) return <LoadingSpinner />;
   if (isError) return <div className="text-red-500">Error loading visits.</div>;
